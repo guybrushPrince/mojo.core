@@ -1,0 +1,39 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+
+sourceCompatibility = 1.7
+version = '1.0'
+
+jar {
+	manifest {
+		attributes 	'Implementation-Title': 'Mojo Core',
+					'Implementation-Version': version,
+					'Main-Class': 'de.jena.uni.mojo.Mojo'
+	}
+}
+
+repositories {
+    jcenter()
+	mavenCentral()
+	flatDir {
+		dirs 'libs'
+	}
+}
+
+dependencies {
+    compile 'org.slf4j:slf4j-api:1.5.0'
+	compile 'org.reflections:reflections:0.9.5-RC2'
+	compile name: 'jbpt-0.2.393'
+	compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.7'
+	compile 'org.apache.logging.log4j:log4j-core:2.7'
+	compile group: 'org.apache.commons', name: 'commons-io', version: '1.3.2'
+    testCompile 'junit:junit:4.12'
+	testCompile fileTree(dir: 'libs', include: '*.jar')
+	testCompile 'org.reflections:reflections:0.9.5-RC2'
+	testCompile group: 'org.apache.commons', name: 'commons-io', version: '1.3.2'
+}
+
+javadoc {
+	source = sourceSets.main.allJava
+	classpath = configurations.compile
+}
