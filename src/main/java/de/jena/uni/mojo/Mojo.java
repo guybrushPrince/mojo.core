@@ -29,20 +29,19 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.Set;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.reflections.Reflections;
 
 import de.jena.uni.mojo.analysis.information.AnalysisInformation;
-import de.jena.uni.mojo.annotations.MajorAnalysisPlan;
 import de.jena.uni.mojo.command.Command;
 import de.jena.uni.mojo.error.Annotation;
 import de.jena.uni.mojo.interpreter.IdInterpreter;
 import de.jena.uni.mojo.model.WGNode;
 import de.jena.uni.mojo.model.WorkflowGraph;
+import de.jena.uni.mojo.plan.WorkflowGraphPlanPlugin;
+import de.jena.uni.mojo.plugin.PlanPlugin;
 import de.jena.uni.mojo.plugin.SourcePlugin;
 import de.jena.uni.mojo.processes.FileHandler;
 import de.jena.uni.mojo.reader.Reader;
@@ -74,6 +73,11 @@ public class Mojo {
 	private final static Map<String, SourcePlugin> sourcePlugins = new HashMap<String, SourcePlugin>();
 	
 	/**
+	 * Define a map which maps from an id to the necessary plan plugin.
+	 */
+	private final static Map<String, PlanPlugin> planPlugins = new HashMap<String, PlanPlugin>();
+	
+	/**
 	 * Defines a list of available file extensions.
 	 */
 	public final static List<String> availableFileExtensions = new ArrayList<String>();
@@ -87,6 +91,7 @@ public class Mojo {
 	 * The constructor of Mojo, which defines the commands.
 	 */
 	public Mojo() {
+		loadPlugins();
 		defineCommands();
 	}
 
@@ -98,18 +103,8 @@ public class Mojo {
 	 *            The program arguments
 	 */
 	public static void main(String[] args) {
-		// Get the source plugins
-		Iterator<SourcePlugin> iterator = ServiceLoader
-				.load(SourcePlugin.class).iterator();
-		while (iterator.hasNext()) {
-			SourcePlugin plugin = iterator.next();
-			// Add it to the library
-			sourcePlugins.put(plugin.getFileExtension(), plugin);
-			availableFileExtensions.add(plugin.getFileExtension());
-			
-			logger.info("Register source plugin: " + plugin.getName() + " " + plugin.getVersion());
-			logger.info("\tHandles: " + plugin.getFileExtension());
-		}
+		// Load possible plugins
+		loadPlugins();
 
 		// Define the commands
 		defineCommands();
@@ -136,6 +131,44 @@ public class Mojo {
 				}
 				System.gc();
 			}
+		}
+	}
+	
+	/**
+	 * Load extensions in form of plugins.
+	 */
+	private static void loadPlugins() {
+		// Get the source plugins
+		Iterator<SourcePlugin> iterator = ServiceLoader
+				.load(SourcePlugin.class).iterator();
+		while (iterator.hasNext()) {
+			SourcePlugin plugin = iterator.next();
+			// Add it to the library
+			sourcePlugins.put(plugin.getFileExtension(), plugin);
+			availableFileExtensions.add(plugin.getFileExtension());
+			
+			logger.info("Register source plugin: " + plugin.getName() + " " + plugin.getVersion());
+			logger.info("\tHandles: " + plugin.getFileExtension());
+		}
+		
+		// Put the workflow graph major plan plugin into
+		// the plugins.
+		WorkflowGraphPlanPlugin workflowPlugin = new WorkflowGraphPlanPlugin();
+		planPlugins.put(workflowPlugin.getId(), workflowPlugin);
+		
+		logger.info("Register major plan: " + workflowPlugin.getName() + " " + workflowPlugin.getVersion());
+		logger.info("\tDescription: " + workflowPlugin.getDescription());
+		
+		// Get the plan plugins
+		Iterator<PlanPlugin> planIterator = ServiceLoader
+				.load(PlanPlugin.class).iterator();
+		while (planIterator.hasNext()) {
+			PlanPlugin plugin = planIterator.next();
+			// Add it to the library
+			planPlugins.put(plugin.getId(), plugin);
+			
+			logger.info("Register major plan: " + plugin.getName() + " " + plugin.getVersion());
+			logger.info("\tDescription: " + plugin.getDescription());
 		}
 	}
 
@@ -169,33 +202,20 @@ public class Mojo {
 				"Determine a process file that should be used", false,
 				String.class, "");
 
-		// Get all major plans
-		Set<Class<?>> majorPlans;
-		if (Verifier.majorPlans == null) {
-			Reflections reflections = new Reflections("org.mojo");
-			majorPlans = reflections
-					.getTypesAnnotatedWith(MajorAnalysisPlan.class);
-			Verifier.majorPlans = majorPlans;
-		} else {
-			majorPlans = Verifier.majorPlans;
-		}
-
 		// Create a new stream where we can write in the information
 		// about the major plans.
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		PrintStream pStream = new PrintStream(baos);
 		pStream.printf("%n%-20s %-5s %-50s %s%n", "", "Id", "Name",
-				"Beschreibung");
-		for (Class<?> mp : majorPlans) {
-			MajorAnalysisPlan annotation = mp
-					.getAnnotation(MajorAnalysisPlan.class);
-			pStream.printf("%-20s %-5d %-50s %s%n", "", annotation.id(),
-					annotation.name(), annotation.description());
+				"Description");
+		for (PlanPlugin plugin : planPlugins.values()) {
+			pStream.printf("%-20s %-5s %-50s %s%n", "", plugin.getId(),
+					plugin.getName(), plugin.getDescription());
 		}
 
 		Command anplCommand = new Command("ANALYSIS_PLAN", "analysisPlan",
 				"ap", "Set the major analysis plan" + baos.toString(), false,
-				Integer.class, 0);
+				String.class, 0);
 
 		Command csvfCommand = new Command("CSV", "csv", "c",
 				"Stores all analysis information in a csv file", true,
@@ -282,7 +302,7 @@ public class Mojo {
 				.println("Mojo - Forecast the control flows of business processes");
 
 		System.out.printf("%-40s %-15s %-10s %s%n", "Argument",
-				"Aktueller Wert", "Datentyp", "Beschreibung");
+				"Current value", "Data type", "Description");
 		for (Command com : Mojo.commands.values()) {
 			System.out.printf(
 					"%-40s %-15"
@@ -483,7 +503,7 @@ public class Mojo {
 	 *            The workflow graph.
 	 * @return The maximum node id.
 	 */
-	private static int findMax(WorkflowGraph graph) {
+	public static int findMax(WorkflowGraph graph) {
 		// The maximum is minimal the number of all nodes.
 		int max = graph.getNodeListInclusive().size();
 
@@ -504,12 +524,20 @@ public class Mojo {
 	 *            The workflow graph.
 	 * @return The node array map.
 	 */
-	private static WGNode[] createMap(WorkflowGraph graph, int max) {
+	public static WGNode[] createMap(WorkflowGraph graph, int max) {
 		WGNode[] map = new WGNode[max];
 		for (WGNode node : graph.getNodeListInclusive()) {
 			map[node.getId()] = node;
 		}
 		return map;
+	}
+	
+	/**
+	 * Get the registered plan plugins.
+	 * @return The plan plugins.
+	 */
+	public static Map<String, PlanPlugin> getPlanPlugins() {
+		return Mojo.planPlugins;
 	}
 
 }

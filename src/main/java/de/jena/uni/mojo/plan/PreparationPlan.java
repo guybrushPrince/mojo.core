@@ -90,7 +90,7 @@ public class PreparationPlan extends Plan {
 	 * 
 	 * @return The node map.
 	 */
-	protected WGNode[] getMap() {
+	public WGNode[] getMap() {
 		return this.map;
 	}
 

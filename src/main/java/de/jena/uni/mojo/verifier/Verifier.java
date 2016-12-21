@@ -18,25 +18,18 @@
  */
 package de.jena.uni.mojo.verifier;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
-
-import org.reflections.Reflections;
 
 import de.jena.uni.mojo.Mojo;
 import de.jena.uni.mojo.analysis.Analysis;
 import de.jena.uni.mojo.analysis.information.AnalysisInformation;
-import de.jena.uni.mojo.annotations.MajorAnalysisPlan;
 import de.jena.uni.mojo.error.Annotation;
 import de.jena.uni.mojo.general.MajorPlan;
 import de.jena.uni.mojo.model.WGNode;
 import de.jena.uni.mojo.model.WorkflowGraph;
 import de.jena.uni.mojo.plan.WorkflowGraphMajorPlan;
+import de.jena.uni.mojo.plugin.PlanPlugin;
 import de.jena.uni.mojo.util.store.ElementStore;
 
 /**
@@ -64,17 +57,6 @@ public class Verifier extends Analysis {
 	private final ElementStore store;
 
 	/**
-	 * Determined major plans.
-	 */
-	public static Set<Class<?>> majorPlans = null;
-
-	/**
-	 * Already determined constructors.
-	 */
-	private final static Map<Integer, Constructor<?>> constructors = 
-			new HashMap<Integer, Constructor<?>>();
-
-	/**
 	 * When Mojo is used as terminal tool, it has not an element store in any
 	 * case. If there is not such an element store, then the usage of this
 	 * constructor should be preferred.
@@ -90,12 +72,6 @@ public class Verifier extends Analysis {
 			AnalysisInformation reporter) {
 		super(graph, map, reporter);
 		this.store = null;
-
-		if (Verifier.majorPlans == null) {
-			Reflections reflections = new Reflections("org.mojo");
-			Verifier.majorPlans = reflections
-					.getTypesAnnotatedWith(MajorAnalysisPlan.class);
-		}
 	}
 
 	/**
@@ -127,44 +103,18 @@ public class Verifier extends Analysis {
 		reporter.startIgnoreTimeMeasurement(graph, this.getClass().getName());
 
 		// Determine the constructor of the right major plan.
-		int planId = Mojo.getCommand("ANALYSIS_PLAN").asIntegerValue();
-		Constructor<?> constr = Verifier.constructors.get(planId);
-		
-		// If the constructor was not found
-		if (constr == null) {
-			for (Class<?> mp : Verifier.majorPlans) {
-				if (mp.getAnnotation(MajorAnalysisPlan.class).id() == planId) {
-					// Determine the constructor
-					try {
-						constr = mp.getConstructor(
-								WorkflowGraph.class, this.map.getClass(),
-								AnalysisInformation.class, ElementStore.class);
-						
-						Verifier.constructors.put(planId, constr);
-					} catch (NoSuchMethodException | SecurityException e) {
-						e.printStackTrace();
-					}
-				}
-			}
-		}
+		String planId = Mojo.getCommand("ANALYSIS_PLAN").asStringValue();
 		
 		// Instantiate the major plan
+		PlanPlugin plugin = Mojo.getPlanPlugins().get(planId);
 		MajorPlan plan = null;
 		// Instantiate the plan
-		if (constr != null) {
-			try {
-				plan = (MajorPlan) constr.newInstance(graph, map, reporter,
-						store);
-			} catch (InstantiationException | IllegalAccessException
-					| IllegalArgumentException | InvocationTargetException e1) {
-				e1.printStackTrace();
-			}
-		}
-		
-		// Define the default plan
-		if (plan == null) {
+		if (plugin != null) {
+			plan = plugin.getInstance(graph, map, reporter, store);
+		} else {
 			plan = new WorkflowGraphMajorPlan(graph, map, reporter, store);
 		}
+		
 		reporter.endIgnoreTimeMeasurement(graph, this.getClass().getName());
 
 		// Invoke the plan
