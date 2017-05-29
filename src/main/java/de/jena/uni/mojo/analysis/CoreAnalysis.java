@@ -50,19 +50,19 @@ public abstract class CoreAnalysis extends RecursiveTask<List<Annotation>> {
 	/**
 	 * The file or name of the process.
 	 */
-	protected final String file;
+	protected final String processName;
 
 	/**
 	 * The constructor defines a core analysis consisting of an analysis
 	 * information reporter that measures for example the time.
 	 * 
-	 * @param file
+	 * @param processName
 	 *            The file or name of the process.
 	 * @param reporter
 	 *            An analysis information reporter
 	 */
-	public CoreAnalysis(String file, AnalysisInformation reporter) {
-		this.file = file;
+	public CoreAnalysis(String processName, AnalysisInformation reporter) {
+		this.processName = processName;
 		this.reporter = reporter;
 	}
 
@@ -83,9 +83,9 @@ public abstract class CoreAnalysis extends RecursiveTask<List<Annotation>> {
 	 * @return A list of error information.
 	 */
 	public List<Annotation> compute() {
-		reporter.startTimeMeasurement(file, this.getClass().getName());
+		reporter.startTimeMeasurement(processName, this.getClass().getName());
 		List<Annotation> list = analyze();
-		reporter.endTimeMeasurement(file, this.getClass().getName());
+		reporter.endTimeMeasurement(processName, this.getClass().getName());
 		return list;
 	}
 }

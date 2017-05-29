@@ -399,40 +399,59 @@ public class Mojo {
 			
 			// Determine the right reader
 			Reader reader = plugin.getReader(file, analysisInformation);
-			IdInterpreter interpreter = plugin.getIdInterpreter();
 			
 			// Read in the files
 			list.addAll(reader.compute());
-			List<WorkflowGraph> graphs = reader.getResult();
 
-			// The graph cannot be transformed
-			if (graphs == null)
-				continue;
+			analyzeWorkflowGraphs(file, reader.getResult(), plugin.getIdInterpreter(), analysisInformation, list);
 
+		}
+
+		return analysisInformation;
+	}
+	
+	/**
+	 * Analyses all workflow graphs of a file.
+	 * @param file The current file.
+	 * @param graphs The workflow graphs which were extracted from the file.
+	 * @param interpreter An id interpreter (depending on the input)
+	 * @param analysisInformation The analysis information.
+	 * @param list A list of annotations.
+	 */
+	private static void analyzeWorkflowGraphs(
+			File file,
+			List<WorkflowGraph> graphs, 
+			IdInterpreter interpreter,
+			AnalysisInformation analysisInformation, 
+			List<Annotation> list) {
+		
+		// The graph cannot be transformed
+		if (graphs != null) {
+	
 			// Print the file that will be verified.
 			System.out.printf("%n%s", file);
-
+	
 			// For each workflow graph within the process
 			for (WorkflowGraph g : graphs) {
 				// Store the file name.
 				analysisInformation.put(g, AnalysisInformation.FILE_NAME,
 						file.getName());
-
+	
 				// Start the time measurement
 				analysisInformation.startTimeMeasurement(g, "Verifier");
-
+	
 				// Create a new verifier.
 				Verifier verifier = new Verifier(g, createMap(g, findMax(g)),
 						analysisInformation);
 				// Verify the process.
 				list.addAll(verifier.compute());
-
+	
 				// Stop the time measurement
 				analysisInformation.endTimeMeasurement(g, "Verifier");
-
+	
 				// Show the information.
 				if (!commands.get("HIDE_STATISTICS").asBooleanValue()) {
-
+	
 					// Print the time
 					System.out
 							.printf("%n\tTime spent: %15f [ms]%n",
@@ -441,7 +460,7 @@ public class Mojo {
 													"Verifier"
 															+ AnalysisInformation.TIME_MEASUREMENT))
 											/ (double) 1000000);
-
+	
 					// Print the errors
 					for (Annotation error : list) {
 						error.printInformation(interpreter);
@@ -451,7 +470,7 @@ public class Mojo {
 					}
 				}
 			}
-
+	
 			if (commands.get("DOT").asBooleanValue()) {
 				// Export the workflow graph as dot file.
 				String exportPath = commands.get("EXPORT_PATH").asStringValue();
@@ -461,10 +480,8 @@ public class Mojo {
 										.asStringValue() : exportPath)
 										+ File.separator, file.getName());
 			}
-
 		}
-
-		return analysisInformation;
+		
 	}
 
 	/**
