@@ -19,10 +19,10 @@
 package de.jena.uni.mojo.plugin;
 
 import java.io.File;
-import java.util.List;
+import java.io.IOException;
+import java.nio.charset.Charset;
 
 import de.jena.uni.mojo.analysis.information.AnalysisInformation;
-import de.jena.uni.mojo.error.Annotation;
 import de.jena.uni.mojo.interpreter.IdInterpreter;
 import de.jena.uni.mojo.reader.Reader;
 
@@ -34,36 +34,16 @@ import de.jena.uni.mojo.reader.Reader;
 public interface SourcePlugin {
 
 	public String getName();
-	
+
 	public String getVersion();
-	
+
 	public String getFileExtension();
+
+	public Reader getReader(String processName, File file, AnalysisInformation information, Charset encoding)
+			throws IOException;
 	
-	public Reader getReader(File file, AnalysisInformation information);
-	
+	public Reader getReader(String processName, String stream, AnalysisInformation information, Charset encoding);
+
 	public IdInterpreter getIdInterpreter();
 	
-	/**
-	 * When Mojo is used as a library it can read in a BPMN file and collect the
-	 * information.
-	 * 
-	 * @param bpmn
-	 *            The BPMN file.
-	 * @param info
-	 *            The analysis information.
-	 * @return A list of errors within the process.
-	 */
-	public List<Annotation> verify(File bpmn, AnalysisInformation info);
-	
-	/**
-	 * If Mojo is used as a library, this interface can be used to verify a BPMN
-	 * XML string.
-	 * 
-	 * @param bpmnXML
-	 *            The BPMN XML string.
-	 * @param info
-	 *            The analysis information container.
-	 * @return A list of errors.
-	 */
-	public List<Annotation> verify(String bpmnXML, AnalysisInformation info);
 }

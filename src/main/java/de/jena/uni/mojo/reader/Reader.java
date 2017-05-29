@@ -48,7 +48,7 @@ public abstract class Reader extends CoreAnalysis {
 	/**
 	 * The file which is read.
 	 */
-	protected final File file;
+	protected final String processName;
 
 	/**
 	 * A list of resulting workflow graphs.
@@ -65,7 +65,20 @@ public abstract class Reader extends CoreAnalysis {
 	 */
 	protected Reader(File file, AnalysisInformation analysisInformation) {
 		super(file.getAbsolutePath(), analysisInformation);
-		this.file = file;
+		this.processName = file.getAbsolutePath();
+	}
+	
+	/**
+	 * The constructor.
+	 * 
+	 * @param processName
+	 *            The name of the process.
+	 * @param analysisInformation
+	 *            The analysis information.
+	 */
+	protected Reader(String processName, AnalysisInformation analysisInformation) {
+		super(processName, analysisInformation);
+		this.processName = processName;
 	}
 
 	@Override

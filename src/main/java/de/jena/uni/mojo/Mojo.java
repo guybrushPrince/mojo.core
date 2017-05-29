@@ -23,6 +23,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -68,20 +70,21 @@ public class Mojo {
 	private static FileHandler fileHandler;
 
 	/**
-	 * Define a map which maps from file extension to the necessary source plugin.
+	 * Define a map which maps from file extension to the necessary source
+	 * plugin.
 	 */
 	private final static Map<String, SourcePlugin> sourcePlugins = new HashMap<String, SourcePlugin>();
-	
+
 	/**
 	 * Define a map which maps from an id to the necessary plan plugin.
 	 */
 	private final static Map<String, PlanPlugin> planPlugins = new HashMap<String, PlanPlugin>();
-	
+
 	/**
 	 * Defines a list of available file extensions.
 	 */
 	public final static List<String> availableFileExtensions = new ArrayList<String>();
-	
+
 	/**
 	 * Define a logger.
 	 */
@@ -133,40 +136,38 @@ public class Mojo {
 			}
 		}
 	}
-	
+
 	/**
 	 * Load extensions in form of plugins.
 	 */
 	private static void loadPlugins() {
 		// Get the source plugins
-		Iterator<SourcePlugin> iterator = ServiceLoader
-				.load(SourcePlugin.class).iterator();
+		Iterator<SourcePlugin> iterator = ServiceLoader.load(SourcePlugin.class).iterator();
 		while (iterator.hasNext()) {
 			SourcePlugin plugin = iterator.next();
 			// Add it to the library
 			sourcePlugins.put(plugin.getFileExtension(), plugin);
 			availableFileExtensions.add(plugin.getFileExtension());
-			
+
 			logger.info("Register source plugin: " + plugin.getName() + " " + plugin.getVersion());
 			logger.info("\tHandles: " + plugin.getFileExtension());
 		}
-		
+
 		// Put the workflow graph major plan plugin into
 		// the plugins.
 		WorkflowGraphPlanPlugin workflowPlugin = new WorkflowGraphPlanPlugin();
 		planPlugins.put(workflowPlugin.getId(), workflowPlugin);
-		
+
 		logger.info("Register major plan: " + workflowPlugin.getName() + " " + workflowPlugin.getVersion());
 		logger.info("\tDescription: " + workflowPlugin.getDescription());
-		
+
 		// Get the plan plugins
-		Iterator<PlanPlugin> planIterator = ServiceLoader
-				.load(PlanPlugin.class).iterator();
+		Iterator<PlanPlugin> planIterator = ServiceLoader.load(PlanPlugin.class).iterator();
 		while (planIterator.hasNext()) {
 			PlanPlugin plugin = planIterator.next();
 			// Add it to the library
 			planPlugins.put(plugin.getId(), plugin);
-			
+
 			logger.info("Register major plan: " + plugin.getName() + " " + plugin.getVersion());
 			logger.info("\tDescription: " + plugin.getDescription());
 		}
@@ -176,54 +177,41 @@ public class Mojo {
 	 * Defines the commands which can be used as argument for Mojo.
 	 */
 	private static void defineCommands() {
-		Command pathCommand = new Command("PATH", "path", "p",
-				"Set the file path", false, String.class, "."
-						+ File.separatorChar);
-		Command expoCommand = new Command(
-				"EXPORT_PATH",
-				"export",
-				"e",
-				"Set the export path, i.e., the path where the output files are stored in.",
-				false, String.class, "." + File.separatorChar);
-		Command verbCommand = new Command("VERBOSE", "verbose", "v",
-				"Makes Mojo more verbose", true, Boolean.class, false);
-		Command timeCommand = new Command("TIMES", "times", "t",
-				"Performs each analysis <times> often", false, Integer.class, 1);
-		Command dotoCommand = new Command("DOT", "dot", "d",
-				"Produces a dot graph for each file", true, Boolean.class,
+		Command pathCommand = new Command("PATH", "path", "p", "Set the file path", false, String.class,
+				"." + File.separatorChar);
+		Command expoCommand = new Command("EXPORT_PATH", "export", "e",
+				"Set the export path, i.e., the path where the output files are stored in.", false, String.class,
+				"." + File.separatorChar);
+		Command verbCommand = new Command("VERBOSE", "verbose", "v", "Makes Mojo more verbose", true, Boolean.class,
 				false);
-		Command hideCommand = new Command("HIDE_STATISTICS", "hide", "no",
-				"Hides the statistics about the processes", true,
+		Command timeCommand = new Command("TIMES", "times", "t", "Performs each analysis <times> often", false,
+				Integer.class, 1);
+		Command dotoCommand = new Command("DOT", "dot", "d", "Produces a dot graph for each file", true, Boolean.class,
+				false);
+		Command hideCommand = new Command("HIDE_STATISTICS", "hide", "no", "Hides the statistics about the processes",
+				true, Boolean.class, false);
+		Command helpCommand = new Command("HELP", "help", "h", "Show helpful information about the commands", true,
 				Boolean.class, false);
-		Command helpCommand = new Command("HELP", "help", "h",
-				"Show helpful information about the commands", true,
-				Boolean.class, false);
-		Command fileCommand = new Command("PROCESS_FILE", "file", "f",
-				"Determine a process file that should be used", false,
-				String.class, "");
+		Command fileCommand = new Command("PROCESS_FILE", "file", "f", "Determine a process file that should be used",
+				false, String.class, "");
 
 		// Create a new stream where we can write in the information
 		// about the major plans.
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		PrintStream pStream = new PrintStream(baos);
-		pStream.printf("%n%-20s %-5s %-50s %s%n", "", "Id", "Name",
-				"Description");
+		pStream.printf("%n%-20s %-5s %-50s %s%n", "", "Id", "Name", "Description");
 		for (PlanPlugin plugin : planPlugins.values()) {
-			pStream.printf("%-20s %-5s %-50s %s%n", "", plugin.getId(),
-					plugin.getName(), plugin.getDescription());
+			pStream.printf("%-20s %-5s %-50s %s%n", "", plugin.getId(), plugin.getName(), plugin.getDescription());
 		}
 
-		Command anplCommand = new Command("ANALYSIS_PLAN", "analysisPlan",
-				"ap", "Set the major analysis plan" + baos.toString(), false,
-				String.class, "0");
+		Command anplCommand = new Command("ANALYSIS_PLAN", "analysisPlan", "ap",
+				"Set the major analysis plan" + baos.toString(), false, String.class, "0");
 
-		Command csvfCommand = new Command("CSV", "csv", "c",
-				"Stores all analysis information in a csv file", true,
+		Command csvfCommand = new Command("CSV", "csv", "c", "Stores all analysis information in a csv file", true,
 				Boolean.class, false);
 
 		Command simpCommand = new Command("SIMPLE_END_PLACE", "simple", "s",
-				"Produces a simple end node when the input is a PNML file.",
-				true, Boolean.class, false);
+				"Produces a simple end node when the input is a PNML file.", true, Boolean.class, false);
 
 		commands.put(pathCommand.getName(), pathCommand);
 		commands.put(expoCommand.getName(), expoCommand);
@@ -264,8 +252,7 @@ public class Mojo {
 			// Iterate over each command
 			boolean getCommand = false;
 			for (Command com : Mojo.commands.values()) {
-				if (arg.equals("-" + com.getCommand())
-						|| arg.equals("-" + com.getShortCommand())) {
+				if (arg.equals("-" + com.getCommand()) || arg.equals("-" + com.getShortCommand())) {
 
 					getCommand = true;
 
@@ -298,21 +285,14 @@ public class Mojo {
 	 * Show the help context.
 	 */
 	private static void showHelp() {
-		System.out
-				.println("Mojo - Forecast the control flows of business processes");
+		System.out.println("Mojo - Forecast the control flows of business processes");
 
-		System.out.printf("%-40s %-15s %-10s %s%n", "Argument",
-				"Current value", "Data type", "Description");
+		System.out.printf("%-40s %-15s %-10s %s%n", "Argument", "Current value", "Data type", "Description");
 		for (Command com : Mojo.commands.values()) {
-			System.out.printf(
-					"%-40s %-15"
-							+ ((com.getValueType() == Integer.class) ? "d"
-									: "s") + " %-10s %s%n",
-					"-" + com.getCommand() + " "
-							+ (com.isFlag() ? "" : "<value> ") + "| -"
-							+ com.getShortCommand() + " "
-							+ (com.isFlag() ? "" : "<value> "), com.getValue(),
-					com.getValueType().getSimpleName(), com.getDescription());
+			System.out.printf("%-40s %-15" + ((com.getValueType() == Integer.class) ? "d" : "s") + " %-10s %s%n",
+					"-" + com.getCommand() + " " + (com.isFlag() ? "" : "<value> ") + "| -" + com.getShortCommand()
+							+ " " + (com.isFlag() ? "" : "<value> "),
+					com.getValue(), com.getValueType().getSimpleName(), com.getDescription());
 		}
 	}
 
@@ -396,71 +376,56 @@ public class Mojo {
 
 			// Get the right source plugin
 			SourcePlugin plugin = Mojo.sourcePlugins.get(FilenameUtils.getExtension(file.getAbsolutePath()));
-			
-			// Determine the right reader
-			Reader reader = plugin.getReader(file, analysisInformation);
-			
-			// Read in the files
-			list.addAll(reader.compute());
 
-			analyzeWorkflowGraphs(file, reader.getResult(), plugin.getIdInterpreter(), analysisInformation, list);
+			try {
+				// Determine the right reader
+				Reader reader = plugin.getReader(file.getName(), file, analysisInformation, Charset.defaultCharset());
+				// Read in the files
+				list.addAll(reader.compute());
 
+				analyzeWorkflowGraphs(file, reader.getResult(), plugin.getIdInterpreter(), analysisInformation, list);
+			} catch (IOException e) {
+			}
 		}
 
 		return analysisInformation;
 	}
-	
+
 	/**
 	 * Analyses all workflow graphs of a file.
-	 * @param file The current file.
-	 * @param graphs The workflow graphs which were extracted from the file.
-	 * @param interpreter An id interpreter (depending on the input)
-	 * @param analysisInformation The analysis information.
-	 * @param list A list of annotations.
+	 * 
+	 * @param file
+	 *            The current file.
+	 * @param graphs
+	 *            The workflow graphs which were extracted from the file.
+	 * @param interpreter
+	 *            An id interpreter (depending on the input)
+	 * @param analysisInformation
+	 *            The analysis information.
+	 * @param list
+	 *            A list of annotations.
 	 */
-	private static void analyzeWorkflowGraphs(
-			File file,
-			List<WorkflowGraph> graphs, 
-			IdInterpreter interpreter,
-			AnalysisInformation analysisInformation, 
-			List<Annotation> list) {
-		
+	private static void analyzeWorkflowGraphs(File file, List<WorkflowGraph> graphs, IdInterpreter interpreter,
+			AnalysisInformation analysisInformation, List<Annotation> list) {
+
 		// The graph cannot be transformed
 		if (graphs != null) {
-	
+
 			// Print the file that will be verified.
 			System.out.printf("%n%s", file);
-	
+
 			// For each workflow graph within the process
 			for (WorkflowGraph g : graphs) {
-				// Store the file name.
-				analysisInformation.put(g, AnalysisInformation.FILE_NAME,
-						file.getName());
-	
-				// Start the time measurement
-				analysisInformation.startTimeMeasurement(g, "Verifier");
-	
-				// Create a new verifier.
-				Verifier verifier = new Verifier(g, createMap(g, findMax(g)),
-						analysisInformation);
-				// Verify the process.
-				list.addAll(verifier.compute());
-	
-				// Stop the time measurement
-				analysisInformation.endTimeMeasurement(g, "Verifier");
-	
+
+				Mojo.analyzeWorkflowGraph(file.getName(), g, analysisInformation, list);
+
 				// Show the information.
 				if (!commands.get("HIDE_STATISTICS").asBooleanValue()) {
-	
+
 					// Print the time
-					System.out
-							.printf("%n\tTime spent: %15f [ms]%n",
-									(double) ((long) analysisInformation
-											.get(g,
-													"Verifier"
-															+ AnalysisInformation.TIME_MEASUREMENT))
-											/ (double) 1000000);
-	
+					System.out.printf("%n\tTime spent: %15f [ms]%n", (double) ((long) analysisInformation.get(g,
+							"Verifier" + AnalysisInformation.TIME_MEASUREMENT)) / (double) 1000000);
+
 					// Print the errors
 					for (Annotation error : list) {
 						error.printInformation(interpreter);
@@ -470,18 +435,45 @@ public class Mojo {
 					}
 				}
 			}
-	
+
 			if (commands.get("DOT").asBooleanValue()) {
 				// Export the workflow graph as dot file.
 				String exportPath = commands.get("EXPORT_PATH").asStringValue();
-				WorkflowGraphExporter
-						.exportToDot(graphs,
-								(exportPath == "" ? commands.get("PATH")
-										.asStringValue() : exportPath)
-										+ File.separator, file.getName());
+				WorkflowGraphExporter.exportToDot(graphs,
+						(exportPath == "" ? commands.get("PATH").asStringValue() : exportPath) + File.separator,
+						file.getName());
 			}
 		}
-		
+
+	}
+
+	/**
+	 * Analyses a single workflow graph.
+	 * 
+	 * @param processName
+	 *            The name of the process, e.g., the file name.
+	 * @param graph
+	 *            The workflow graph.
+	 * @param analysisInformation
+	 *            The analysis information
+	 * @param list
+	 *            A list of annotations.
+	 */
+	public static void analyzeWorkflowGraph(String processName, WorkflowGraph graph,
+			AnalysisInformation analysisInformation, List<Annotation> list) {
+		// Store the file name.
+		analysisInformation.put(graph, AnalysisInformation.FILE_NAME, processName);
+
+		// Start the time measurement
+		analysisInformation.startTimeMeasurement(graph, "Verifier");
+
+		// Create a new verifier.
+		Verifier verifier = new Verifier(graph, createMap(graph, findMax(graph)), analysisInformation);
+		// Verify the process.
+		list.addAll(verifier.compute());
+
+		// Stop the time measurement
+		analysisInformation.endTimeMeasurement(graph, "Verifier");
 	}
 
 	/**
@@ -501,8 +493,7 @@ public class Mojo {
 		System.out.println("Start to verify");
 
 		// Define a new verifier.
-		Verifier verifier = new Verifier(graph,
-				createMap(graph, findMax(graph)), info);
+		Verifier verifier = new Verifier(graph, createMap(graph, findMax(graph)), info);
 
 		// Start the analysis
 		List<Annotation> errors = verifier.compute();
@@ -511,6 +502,67 @@ public class Mojo {
 		info.endTimeMeasurement(graph, "Verifier");
 
 		return errors;
+	}
+
+	/**
+	 * When Mojo is used as a library it can read in a BPMN file and collect the
+	 * information.
+	 * 
+	 * @param processName
+	 *            The name of the process (optional)
+	 * @param file
+	 *            The file.
+	 * @param info
+	 *            The analysis information.
+	 * @param charset
+	 *            The charset of the file.
+	 * @return A list of errors within the process.
+	 * @throws IOException
+	 *             if a failure occurs during reading the file.
+	 */
+	public List<Annotation> verify(String processName, File file, AnalysisInformation info, Charset encoding)
+			throws IOException {
+		String stream = String.join("", Files.readAllLines(file.toPath(), encoding));
+		return this.verify(processName, stream, FilenameUtils.getExtension(file.getAbsolutePath()), info, encoding);
+	}
+
+	/**
+	 * If Mojo is used as a library, this interface can be used to verify a
+	 * process string.
+	 * 
+	 * @param processName
+	 *            The name of the process (optional)
+	 * @param stream
+	 *            The process stream string.
+	 * @param info
+	 *            The analysis information container.
+	 * @param charset
+	 *            The charset of the file.
+	 * @return A list of errors.
+	 */
+	public List<Annotation> verify(String processName, String stream, String extension, AnalysisInformation info,
+			Charset encoding) {
+		// Get the right source plugin
+		SourcePlugin plugin = Mojo.sourcePlugins.get(extension);
+
+		// Create a list to store the errors.
+		List<Annotation> list = new ArrayList<Annotation>();
+
+		// Create a reader for the string.
+		Reader reader = plugin.getReader(processName, stream, info, encoding);
+
+		list.addAll(reader.compute());
+
+		List<WorkflowGraph> graphs = reader.getResult();
+
+		// The graph cannot be transformed
+		if (graphs != null) {
+			// For each workflow graph within the process
+			for (WorkflowGraph g : graphs)
+				Mojo.analyzeWorkflowGraph(processName, g, info, list);
+		}
+
+		return list;
 	}
 
 	/**
@@ -548,9 +600,10 @@ public class Mojo {
 		}
 		return map;
 	}
-	
+
 	/**
 	 * Get the registered plan plugins.
+	 * 
 	 * @return The plan plugins.
 	 */
 	public static Map<String, PlanPlugin> getPlanPlugins() {
