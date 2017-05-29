@@ -310,7 +310,8 @@ public class NetworkGraph extends Analysis {
 
 		// Recursively set the capacity
 		BitSet visited = new BitSet(tmpEdges.length);
-		BitSet not = (BitSet) sync.postDominatorSet.clone();
+		// Set the capacities not for the dependent outgoing edges of join nodes.
+		BitSet not = (BitSet) sync.dependent.clone();
 		not.clear(sync.id);
 		for (NetworkEdge edge : tmpEdges) {
 			visitedEdges++;

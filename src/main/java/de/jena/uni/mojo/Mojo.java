@@ -215,7 +215,7 @@ public class Mojo {
 
 		Command anplCommand = new Command("ANALYSIS_PLAN", "analysisPlan",
 				"ap", "Set the major analysis plan" + baos.toString(), false,
-				String.class, 0);
+				String.class, "0");
 
 		Command csvfCommand = new Command("CSV", "csv", "c",
 				"Stores all analysis information in a csv file", true,

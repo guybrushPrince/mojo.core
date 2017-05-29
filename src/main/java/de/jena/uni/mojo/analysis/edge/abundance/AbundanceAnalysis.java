@@ -127,6 +127,9 @@ public class AbundanceAnalysis extends Analysis {
 
 		// Step 2: Determine the places for phi-functions
 		setPhiFunctions();
+		
+		// Step 2b: Determine the dependencies of the edges
+		determineExecDependencies();
 
 		// Step 3:
 		// Build the network graph
@@ -138,9 +141,9 @@ public class AbundanceAnalysis extends Analysis {
 			network.transformFor(fork);
 			for (Definition def: definitions) {
 				if (def.getForkEdge().tgt.getId() == fork.getId()) {
-					if (!network.setCapacities(fork, def.getEdge()) ||
-							def.getEdge().src.getType() == Type.JOIN ||
-							def.getEdge().src.getType() == Type.OR_JOIN) continue;
+					if (def.getEdge().src.getType() == Type.JOIN ||
+							def.getEdge().src.getType() == Type.OR_JOIN ||
+							!network.setCapacities(fork, def.getEdge())) continue;
 					// Determine the max flow
 					errors.addAll(network.compute());
 					List<BitSet> paths = network.getLastResult(); 
@@ -256,6 +259,88 @@ public class AbundanceAnalysis extends Analysis {
 					}
 				}
 			}
+		}
+	}
+	
+	/**
+	 * Performs a depth first search on the `allowed` edges.
+	 * @param current The current edge.
+	 * @param allowed The allowed edges.
+	 * @param visited The already visited edges.
+	 */
+	private void depthFirstSearch(
+			int current, 
+			BitSet allowed, 
+			BitSet visited) {
+		edgesVisited++;
+		visited.set(current);
+		Edge e = this.edges.get(current);
+		BitSet succ = (BitSet) this.outgoing[e.tgt.getId()].clone();
+		succ.andNot(visited);
+		succ.and(allowed);
+		for (int s = succ.nextSetBit(0); s >= 0; s = succ.nextSetBit(s + 1)) {
+			depthFirstSearch(s, allowed, visited);
+		}
+	}
+	
+	/**
+	 * Determines the execution dependencies of each meeting point.
+	 */
+	private void determineExecDependencies() {
+		// Build an all edges bit set
+		BitSet edgesSet = new BitSet(this.edges.size());
+		edgesSet.set(0, this.edges.size());
+		BitSet oldReachable = new BitSet(this.edges.size());
+		BitSet remaining = new BitSet(this.edges.size());
+		BitSet reachable = new BitSet(this.edges.size());
+		
+		// Determine a set of all outgoing edges
+		BitSet outgoingJoins = new BitSet(this.edges.size());
+		BitSet joins = this.graph.getJoinSet();
+		for (int join = joins.nextSetBit(0); join >= 0; join = joins.nextSetBit(join + 1)) {
+			outgoingJoins.or(this.outgoing[join]);
+		}
+		
+		// The start edge
+		int start = outgoing[graph.getStart().getId()].nextSetBit(0);
+		
+		// Determine the execution dependencies for each edge.
+		for (Definition def: definitions) {
+			edgesVisited++;			
+			Edge cur = def.getEdge();
+			if (cur.src.getType() == Type.JOIN || 
+				cur.src.getType() == Type.OR_JOIN) continue;
+			
+			reachable.set(0, this.edges.size());
+			reachable.clear(cur.id);
+			oldReachable.set(0, this.edges.size());
+			do {
+				oldReachable.and(reachable);
+				edgesVisited++;
+				
+				// Perform a modified depth first search on remaining edges
+				remaining.clear();
+				depthFirstSearch(start, reachable, remaining);
+				reachable.and(remaining);
+
+				for (int join = joins.nextSetBit(0); join >= 0; join = joins.nextSetBit(join + 1)) {
+					edgesVisited++;
+					remaining.or(reachable);
+					remaining.and(this.incoming[join]);
+					if (remaining.cardinality() < this.incoming[join].cardinality()) {
+						reachable.andNot(this.outgoing[join]);
+					}
+				}
+			} while (oldReachable.cardinality() > reachable.cardinality());
+					
+			// We have reached a stable point, i.e., no edges can be eliminated
+			// from the graph anymore.
+			// Determine the edges being dependent from the current edge. These
+			// all edges being not in the all set.
+			remaining.set(0, this.edges.size());
+			remaining.andNot(reachable);
+			remaining.and(outgoingJoins); // Only those of joins are welcome
+			cur.dependent.or(remaining);			
 		}
 	}
 }

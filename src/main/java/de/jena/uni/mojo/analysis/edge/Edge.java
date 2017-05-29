@@ -66,6 +66,11 @@ public class Edge {
 	 * The synchronization edges of all direct successor edges.
 	 */
 	public final BitSet syncEdges;
+	
+	/**
+	 * A set of all dependent edges from this edge.
+	 */
+	public final BitSet dependent;
 
 	/**
 	 * A list of dominators.
@@ -132,6 +137,7 @@ public class Edge {
 		this.deadlockGen = new BitSet(edges);
 		this.deadlockKill = new BitSet(edges);
 		this.syncEdges = new BitSet(edges);
+		this.dependent = new BitSet(edges);
 
 		this.dominatorSet = new BitSet(edges);
 		this.postDominatorSet = new BitSet(edges);

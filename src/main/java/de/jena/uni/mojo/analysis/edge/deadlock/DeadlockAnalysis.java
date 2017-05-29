@@ -207,7 +207,7 @@ public class DeadlockAnalysis extends Analysis {
 
 		// Build an edge bit set
 		BitSet edges = new BitSet(this.edges.size());
-		edges.set(0, edges.size());
+		edges.set(0, this.edges.size());
 
 		// We determine the appr. exec. edges for each
 		// join node
