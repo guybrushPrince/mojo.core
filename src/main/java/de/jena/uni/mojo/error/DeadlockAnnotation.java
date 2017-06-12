@@ -215,4 +215,16 @@ public class DeadlockAnnotation extends Annotation {
 		return extractOriginalNodes(failureNodes);
 	}
 
+	public List<List<AbstractEdge>> getListOfFailurePaths() {
+		List<List<AbstractEdge>> listOfPaths = new ArrayList<>();
+		for (BitSet path : this.pathsToFailure) {
+			// Extract the workflow graph edges
+			List<Edge> wfgEdges = this.extractEdgePath(path);
+
+			listOfPaths.add(extractAbstractPath(wfgEdges));
+		}
+
+		return listOfPaths;
+	}
+
 }
