@@ -115,6 +115,9 @@ public class NetworkGraph extends Analysis {
 	
 	private final BitSet replaced;
 
+	private final HashMap<Object, Object> virtualEdgeOrigin
+		= new HashMap<>();
+	
 	/**
 	 * The constructor.
 	 * 
@@ -181,9 +184,11 @@ public class NetworkGraph extends Analysis {
 		for (BitSet path : lastResult) {
 			for (int p = path.nextSetBit(0); p >= 0; p = path.nextSetBit(p + 1)) {
 				NetworkEdge edge = tmpEdges[p];
-				if (edge.origin != null) {
+				NetworkEdge origin = (NetworkEdge) this.virtualEdgeOrigin.get(edge);
+				//if (edge.origin != null) {
+				if (origin != null) {
 					path.clear(p);
-					path.set(edge.origin.id);
+					path.set(origin.id);
 				}
 			}
 		}
@@ -237,10 +242,12 @@ public class NetworkGraph extends Analysis {
 		NetworkNode nFork = nodes[fork.getId()];
 		// Copy the network fork
 		NetworkNode cFork = new NetworkNode(nodeCounter);
-		cFork.originNode = nFork;
+		//cFork.originNode = nFork;
 		// Later, we have to remove this node
 		tmpNodes[nodeCounter++] = cFork;
 
+		this.virtualEdgeOrigin.clear();
+		
 		// Create a node for each outgoing node of
 		// the fork
 		BitSet outgoing = graph.getOutgoingEdges()[fork.getId()];
@@ -248,7 +255,8 @@ public class NetworkGraph extends Analysis {
 				.nextSetBit(o + 1)) {
 			visitedEdges += 3;
 			NetworkNode mNode = new NetworkNode(nodeCounter);
-			mNode.originEdge = edges[o];
+			//mNode.originEdge = edges[o];
+			this.virtualEdgeOrigin.put(mNode, edges[o]);
 			tmpNodes[nodeCounter++] = mNode;
 
 			//
@@ -258,7 +266,8 @@ public class NetworkGraph extends Analysis {
 			NetworkEdge out = edges[o];
 			// Create a copy
 			NetworkEdge cout = new NetworkEdge(o, mNode, out.tgt);
-			cout.origin = out;
+			//cout.origin = out;
+			this.virtualEdgeOrigin.put(cout, out);
 			// Replace
 			tmpEdges[o] = cout;
 			this.replaced.set(o);
@@ -269,11 +278,13 @@ public class NetworkGraph extends Analysis {
 			// Create two new edges
 			NetworkEdge oldForkMerge = new NetworkEdge(edgeCounter, nFork,
 					mNode);
-			oldForkMerge.origin = out;
+			//oldForkMerge.origin = out;
+			this.virtualEdgeOrigin.put(oldForkMerge, out);
 			tmpEdges[edgeCounter++] = oldForkMerge;
 			NetworkEdge newForkMerge = new NetworkEdge(edgeCounter, cFork,
 					mNode);
-			newForkMerge.origin = out;
+			//newForkMerge.origin = out;
+			this.virtualEdgeOrigin.put(newForkMerge, out);
 			tmpEdges[edgeCounter++] = newForkMerge;
 		}
 		
@@ -288,7 +299,8 @@ public class NetworkGraph extends Analysis {
 				.nextSetBit(0)];
 		// Create a copy to the new fork copy
 		NetworkEdge cinEdge = new NetworkEdge(inEdge.id, inEdge.src, cFork);
-		cinEdge.origin = inEdge;
+		//cinEdge.origin = inEdge;
+		this.virtualEdgeOrigin.put(cinEdge, inEdge);
 		// Replace
 		// tmpEdges.add(cinEdge);
 		tmpEdges[inEdge.id] = cinEdge;
@@ -374,7 +386,9 @@ public class NetworkGraph extends Analysis {
 		not.clear(sync.id);
 		for (NetworkEdge edge : tmpEdges) {
 			visitedEdges++;
-			if (edge != null && edge.origin != null && not.get(edge.origin.id)) {
+			//if (edge != null && edge.origin != null && not.get(edge.origin.id)) {
+			NetworkEdge origin = (NetworkEdge) this.virtualEdgeOrigin.get(edge);
+			if (edge != null && origin != null && not.get(origin.id)) {
 				not.set(edge.id);
 			}
 		}
@@ -575,16 +589,6 @@ public class NetworkGraph extends Analysis {
 		protected final int id;
 
 		/**
-		 * The origin node (if there is one)
-		 */
-		protected NetworkNode originNode = null;
-
-		/**
-		 * The origin edge (if there is one)
-		 */
-		protected NetworkEdge originEdge = null;
-
-		/**
 		 * The constructor.
 		 * 
 		 * @param id
@@ -596,9 +600,7 @@ public class NetworkGraph extends Analysis {
 
 		@Override
 		public String toString() {
-			return "N" + id
-					+ (originNode == null ? "" : " oN: " + originNode.id)
-					+ (originEdge == null ? "" : " oE: " + originEdge.id);
+			return "N" + id;
 		}
 	}
 
@@ -626,21 +628,6 @@ public class NetworkGraph extends Analysis {
 		protected final NetworkNode tgt;
 
 		/**
-		 * The origin of the edge (if there is one)
-		 */
-		protected NetworkEdge origin = null;
-
-		/**
-		 * Information for the max flow algorithm: The current flow
-		 */
-		//private int currentFlow = 0;
-
-		/**
-		 * Information for the max flow algorithm: The capacity of the edge
-		 */
-		//private int capacity = 0;
-
-		/**
 		 * The constructor.
 		 * 
 		 * @param id
@@ -656,45 +643,10 @@ public class NetworkGraph extends Analysis {
 			this.tgt = tgt;
 		}
 
-		/**
-		 * Sets the flow.
-		 * 
-		 * @param f
-		 *            The current flow.
-		 */
-		/*public void setFlow(int f) {
-			//this.currentFlow = f;
-			if (f > 0) currentFlow.set(this.id);
-			else currentFlow.clear(this.id);
-		}*/
-
-		/**
-		 * Adds the flow to the current flow
-		 * 
-		 * @param f
-		 *            The flow.
-		 */
-		/*public void addFlow(int f) {
-			//this.currentFlow += f;
-			if (f > 0) currentFlow.set(this.id);
-			else currentFlow.clear(this.id);
-		}*/
-
-		/**
-		 * Sets the capacity of the edge
-		 * 
-		 * @param c
-		 *            The capacity.
-		 */
-		/*public void setCapacity(int c) {
-			this.capacity = c;
-		}*/
 
 		@Override
 		public String toString() {
-			return "E" + id + "(" + src.id + " -> " + tgt.id + ",("
-					//+ this.currentFlow + "," + this.capacity + ")"
-					+ (origin == null ? "" : "," + origin.id) + ")";
+			return "E" + id + "(" + src.id + " -> " + tgt.id + ")";
 		}
 	}
 
