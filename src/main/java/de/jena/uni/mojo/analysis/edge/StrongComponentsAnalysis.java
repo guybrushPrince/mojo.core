@@ -18,6 +18,7 @@
  */
 package de.jena.uni.mojo.analysis.edge;
 
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
@@ -71,6 +72,8 @@ public class StrongComponentsAnalysis extends Analysis {
 	 * The number of edges which are visited by this algorithm.
 	 */
 	private int edgesVisited = 0;
+	
+	public final ArrayList<BitSet> components = new ArrayList<BitSet>();
 
 
 	/**
@@ -127,7 +130,8 @@ public class StrongComponentsAnalysis extends Analysis {
 		}
 
 		if (edge.lowlink == edge.index) {
-			int component = this.componentsCounter++;
+			BitSet comp = new BitSet(edges.size());
+			int component = this.componentsCounter;
 			int numEdges = 0;
 			Edge current;
 			Edge first = null;
@@ -136,12 +140,15 @@ public class StrongComponentsAnalysis extends Analysis {
 				current = stack.pop();
 				if (first == null) first = current;
 				current.component = component;
+				comp.set(current.id);
 				numEdges++;
 				if (numEdges > 1) current.inCycle = true;
-				//if (numEdges > 1) System.out.println(current.id + " in cycle " + component);
 			} while (current != edge);
-			if (numEdges > 1) first.inCycle = true;
-			//if (numEdges > 1) System.out.println(first.id + " in cycle " + component);
+			if (numEdges > 1) {
+				first.inCycle = true;
+				this.componentsCounter++;
+				this.components.add(comp);
+			}
 		}
 	}
 

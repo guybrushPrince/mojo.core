@@ -220,7 +220,6 @@ public class NetworkGraph extends Analysis {
 				.nextSetBit(o + 1)) {
 			visitedEdges += 3;
 			int mNode = nodeCounter++;
-			//mNode.originEdge = edges[o];
 			this.virtualEdgeOrigin.put(mNode, edges[o]);
 
 			//
@@ -335,16 +334,7 @@ public class NetworkGraph extends Analysis {
 		// Initialize
 		this.capacities.clear();
 		this.currentFlow.clear();
-		/*for (NetworkEdge edge : tmpEdges) {
-			visitedEdges++;
-			if (edge != null) {
-				//edge.setCapacity(0);
-				edge.setFlow(0);
-			}
-		}*/
 
-		// Recursively set the capacity
-		BitSet visited = new BitSet(this.virtualNumberEdges);
 		// Set the capacities not for the dependent outgoing edges of join nodes.
 		BitSet not = (BitSet) sync.dependent.clone();
 		not.clear(sync.id);
@@ -358,48 +348,13 @@ public class NetworkGraph extends Analysis {
 		}
 
 		// Set the capacities
-		setCapacities(tmpEdges[sync.id], not, visited);
-		//tmpEdges[sync.id].setCapacity(0);
+		this.capacities.set(0, this.virtualNumberEdges);
+		this.capacities.andNot(not);
 		this.capacities.clear(sync.id);
 
 		return true;
 	}
 
-	/**
-	 * Sets the capacities recursively.
-	 * 
-	 * @param current
-	 *            The current network edge.
-	 * @param not
-	 *            The edges which should not be visited.
-	 * @param visited
-	 *            A set of already visited edges.
-	 */
-	private void setCapacities(NetworkEdge current, BitSet not, BitSet visited) {
-		// Mark as visited
-		visited.set(current.id);
-
-		visitedEdges++;
-
-		// Set the capacity to 1
-		//current.setCapacity(1);
-		this.capacities.set(current.id);
-
-		// Visit the predecessor edges
-		// Get the source node
-		int node = current.src;
-
-		// Get the incoming bit sets
-		BitSet incoming = (BitSet) this.incoming[node].clone();
-		incoming.andNot(visited);
-		incoming.andNot(not);
-		for (int in = incoming.nextSetBit(0); in >= 0; in = incoming
-				.nextSetBit(in + 1)) {
-			// Each incoming edge of an old node is also an old
-			// edge
-			setCapacities(tmpEdges[in], not, visited);
-		}
-	}
 
 	/**
 	 * Determine the max flow and therefore the paths.

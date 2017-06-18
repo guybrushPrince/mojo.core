@@ -113,7 +113,7 @@ public class ControlFlowAnalysisPlan extends Plan {
 		// 5. Determine abundances
 		//
 		AbundanceAnalysis abuAnalysis = new AbundanceAnalysis(graph, map,
-				reporter, domEdgeAnalysis);
+				reporter, domEdgeAnalysis, strongComponentsAnalysis);
 		abuAnalysis.fork();
 
 		//

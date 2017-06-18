@@ -25,6 +25,7 @@ import java.util.List;
 
 import de.jena.uni.mojo.analysis.Analysis;
 import de.jena.uni.mojo.analysis.edge.Edge;
+import de.jena.uni.mojo.analysis.edge.StrongComponentsAnalysis;
 import de.jena.uni.mojo.analysis.edge.dominance.DominatorEdgeAnalysis;
 import de.jena.uni.mojo.analysis.information.AnalysisInformation;
 import de.jena.uni.mojo.error.AbundanceAnnotation;
@@ -101,6 +102,8 @@ public class AbundanceAnalysis extends Analysis {
 	 * The meeting points for each fork
 	 */
 	private final BitSet[] meetingPoints;
+	
+	private final ArrayList<BitSet> components;
 
 	/**
 	 * The constructor of the abundance analysis.
@@ -115,7 +118,8 @@ public class AbundanceAnalysis extends Analysis {
 	 *            The dominator edge analysis.
 	 */
 	public AbundanceAnalysis(WorkflowGraph graph, WGNode[] map,
-			AnalysisInformation reporter, DominatorEdgeAnalysis edgeAnalysis) {
+			AnalysisInformation reporter, DominatorEdgeAnalysis edgeAnalysis,
+			StrongComponentsAnalysis strongAnalysis) {
 		super(graph, map, reporter);
 		this.edges = edgeAnalysis.edges;
 		this.incoming = edgeAnalysis.incoming;
@@ -128,6 +132,7 @@ public class AbundanceAnalysis extends Analysis {
 		for (WGNode orfork: graph.getOrForkList()) {
 			this.meetingPoints[orfork.getId()] = new BitSet(edges.size());
 		}
+		this.components = strongAnalysis.components;
 	}
 
 	@Override
@@ -373,7 +378,7 @@ public class AbundanceAnalysis extends Analysis {
 			ogJoins.or(this.outgoing[join]);
 		}
 		
-		//BitSet exterior = new BitSet(numEdges);
+		BitSet exterior = new BitSet(numEdges);
 		
 		// The start edge
 		int start = outgoing[graph.getStart().getId()].nextSetBit(0);
@@ -383,21 +388,28 @@ public class AbundanceAnalysis extends Analysis {
 		for (Edge cur: edges) {
 			edgesVisited++;
 			execVisited++;
-			/*Edge cur = def.getEdge();
-			if (cur.src.getType() == Type.JOIN || 
-				cur.src.getType() == Type.OR_JOIN ||
-				!cur.dependent.isEmpty()) continue;*/
+			
+			boolean ignore = true;
+			if (cur.inCycle) {
+				BitSet comp = (BitSet) this.components.get(cur.component).clone();
+				comp.and(this.hasDefinitions);
+				if (!comp.isEmpty()) {
+					ignore = false;
+				}
+			}
+
+			if (ignore) continue;
 			if (!this.hasDefinitions.get(cur.id)) continue;
 			
 			execHandled++;
 			
 			// Determine the exterior
-			/*exterior.set(0, numEdges);
+			exterior.set(0, numEdges);
 			int dom = cur.dominatorList.getLast().id;
 			exterior.clear(dom);
 			remaining.clear();
 			depthFirstSearch(start, exterior, remaining);
-			exterior.and(remaining);*/
+			exterior.and(remaining);
 			
 			reachable.set(0, numEdges);
 			reachable.clear(cur.id);
@@ -409,10 +421,10 @@ public class AbundanceAnalysis extends Analysis {
 				
 				// Perform a modified depth first search on remaining edges
 				remaining.clear();
-				depthFirstSearch(start, reachable, remaining);
-				//depthFirstSearch(dom, reachable, remaining);
+				//depthFirstSearch(start, reachable, remaining);
+				depthFirstSearch(dom, reachable, remaining);
 				reachable.and(remaining);
-				//reachable.or(exterior); // TODO
+				reachable.or(exterior); // TODO
 
 				for (int join = joins.nextSetBit(0); join >= 0; join = joins.nextSetBit(join + 1)) {
 					edgesVisited++;
