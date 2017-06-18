@@ -46,6 +46,26 @@ public class Edge {
 	 * The target of the edge, i.e., where the edge ends.
 	 */
 	public final WGNode tgt;
+	
+	/**
+	 * The index for the strong components analysis.
+	 */
+	public int index = -1;
+	
+	/**
+	 * The lowlink for the strong components analysis.
+	 */
+	public int lowlink = -1;
+	
+	/**
+	 * Whether this edge is within a cycle or not.
+	 */
+	public boolean inCycle = false;
+	
+	/**
+	 * The number of the component of the edge.
+	 */
+	public int component = -1;
 
 	/**
 	 * A bit set that later contains the deadlock information.

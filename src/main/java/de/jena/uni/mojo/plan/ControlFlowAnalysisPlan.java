@@ -20,6 +20,7 @@ package de.jena.uni.mojo.plan;
 
 
 import de.jena.uni.mojo.analysis.edge.EdgeAnalysis;
+import de.jena.uni.mojo.analysis.edge.StrongComponentsAnalysis;
 import de.jena.uni.mojo.analysis.edge.abundance.AbundanceAnalysis;
 import de.jena.uni.mojo.analysis.edge.deadlock.DeadlockAnalysis;
 import de.jena.uni.mojo.analysis.edge.dominance.DominatorEdgeAnalysis;
@@ -80,9 +81,17 @@ public class ControlFlowAnalysisPlan extends Plan {
 		PostDominatorEdgeAnalysis postDomEdgeAnalysis = new PostDominatorEdgeAnalysis(
 				graph, map, reporter);
 		postDomEdgeAnalysis.fork();
+		
+		// 
+		// 2.1 Perform a strong connected components analysis
+		// 
+		StrongComponentsAnalysis strongComponentsAnalysis = new StrongComponentsAnalysis(
+				graph, map, reporter);
+		strongComponentsAnalysis.fork();
 
 		domEdgeAnalysis.join();
 		postDomEdgeAnalysis.join();
+		strongComponentsAnalysis.join();
 
 		//
 		// 3. Determine the waiting areas

@@ -21,8 +21,8 @@ package de.jena.uni.mojo.analysis.edge.abundance;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-
 
 import de.jena.uni.mojo.analysis.Analysis;
 import de.jena.uni.mojo.analysis.edge.Edge;
@@ -59,22 +59,22 @@ public class NetworkGraph extends Analysis {
 	/**
 	 * The temporary network nodes.
 	 */
-	private NetworkNode[] tmpNodes;
+	private final NetworkNode[] tmpNodes;
 
 	/**
 	 * The temporary network edges.
 	 */
-	private NetworkEdge[] tmpEdges;
+	private final NetworkEdge[] tmpEdges;
 
 	/**
 	 * Temporary incoming edges sets for network nodes.
 	 */
-	private BitSet[] incoming;
+	private final BitSet[] incoming;
 
 	/**
 	 * Temporary outgoing edges sets for network nodes.
 	 */
-	private BitSet[] outgoing;
+	private final BitSet[] outgoing;
 
 	/**
 	 * The current network source.
@@ -100,6 +100,20 @@ public class NetworkGraph extends Analysis {
 	 * Stores the sync edges which had been already checked.
 	 */
 	private BitSet checked;
+	
+	private final int maxAdditionalEdges;
+	
+	private final int maxAdditionalNodes;
+	
+	private int virtualNumberEdges;
+	
+	private int virtualNumberNodes;
+	
+	private final BitSet capacities;
+	
+	private final BitSet currentFlow;
+	
+	private final BitSet replaced;
 
 	/**
 	 * The constructor.
@@ -116,6 +130,24 @@ public class NetworkGraph extends Analysis {
 		super(graph, nodeMap, information);
 		this.nodes = new NetworkNode[nodeMap.length];
 		this.edges = new NetworkEdge[graph.getEdges().size()];
+		this.replaced = new BitSet(this.edges.length);
+		
+		int max = 0;
+		BitSet forkSet = graph.getForkSet();
+		BitSet[] outgoing = graph.getOutgoingEdges();
+		for (int f = forkSet.nextSetBit(0); f >= 0; f = forkSet.nextSetBit(f + 1)) {
+			max = Math.max(outgoing[f].cardinality(), max);
+		}
+		this.maxAdditionalEdges = edges.length + max * 2;
+		this.maxAdditionalNodes = nodes.length + max + 1;
+		this.tmpEdges = new NetworkEdge[maxAdditionalEdges];
+		this.tmpNodes = new NetworkNode[maxAdditionalNodes];
+		this.incoming = new BitSet[maxAdditionalNodes];
+		this.outgoing = new BitSet[maxAdditionalNodes];
+		
+		this.capacities = new BitSet(maxAdditionalEdges);
+		this.currentFlow = new BitSet(maxAdditionalEdges);
+		
 		initialize();
 	}
 
@@ -139,6 +171,8 @@ public class NetworkGraph extends Analysis {
 			edges[edge.id] = new NetworkEdge(edge.id, nodes[edge.src.getId()],
 					nodes[edge.tgt.getId()]);
 		}
+		System.arraycopy(nodes, 0, tmpNodes, 0, nodes.length);
+		System.arraycopy(edges, 0, tmpEdges, 0, edges.length);
 	}
 
 	@Override
@@ -164,14 +198,28 @@ public class NetworkGraph extends Analysis {
 	 */
 	public void transformFor(WGNode fork) {
 		// Clear the lists
-		tmpNodes = new NetworkNode[nodes.length + fork.getSuccessors().size()
+		/*tmpNodes = new NetworkNode[nodes.length + fork.getSuccessors().size()
 				+ 1];
 		tmpEdges = new NetworkEdge[edges.length + fork.getSuccessors().size()
-				* 2];
+				* 2];*/
 
-		System.arraycopy(nodes, 0, tmpNodes, 0, nodes.length);
-		System.arraycopy(edges, 0, tmpEdges, 0, edges.length);
+		/*System.arraycopy(nodes, 0, tmpNodes, 0, nodes.length);
+		System.arraycopy(edges, 0, tmpEdges, 0, edges.length);*/
+		for (int n = nodes.length; n < this.virtualNumberNodes - 1; n++) {
+			tmpNodes[n] = null;
+		}
+		for (int e = edges.length; e < this.virtualNumberEdges - 1; e++) {
+			tmpEdges[e] = null;
+		}
+		
+		for (int r = replaced.nextSetBit(0); r >= 0; r = replaced.nextSetBit(r + 1)) {
+			tmpEdges[r] = edges[r];
+		}
+		//System.arraycopy(edges, 0, tmpEdges, 0, edges.length);
 
+		// Clear the replaced set
+		replaced.clear();
+		
 		// Clear the already checked set
 		checked = new BitSet(edges.length);
 
@@ -213,6 +261,7 @@ public class NetworkGraph extends Analysis {
 			cout.origin = out;
 			// Replace
 			tmpEdges[o] = cout;
+			this.replaced.set(o);
 
 			//
 			// STEP 4:
@@ -227,6 +276,9 @@ public class NetworkGraph extends Analysis {
 			newForkMerge.origin = out;
 			tmpEdges[edgeCounter++] = newForkMerge;
 		}
+		
+		this.virtualNumberNodes = nodeCounter + 1;
+		this.virtualNumberEdges = edgeCounter + 1;
 
 		//
 		// STEP 2:
@@ -240,11 +292,16 @@ public class NetworkGraph extends Analysis {
 		// Replace
 		// tmpEdges.add(cinEdge);
 		tmpEdges[inEdge.id] = cinEdge;
+		replaced.set(inEdge.id);
+		
+		for (int i = 0; i < this.incoming.length; i++) {
+			if (this.incoming[i] != null)
+				this.incoming[i].clear();
+			if (this.outgoing[i] != null)
+				this.outgoing[i].clear();
+		}
 
 		// Build incoming and outgoing sets
-		this.incoming = new BitSet[tmpNodes.length];
-		this.outgoing = new BitSet[tmpNodes.length];
-
 		for (NetworkEdge edge : tmpEdges) {
 			visitedEdges++;
 			if (edge == null)
@@ -254,16 +311,16 @@ public class NetworkGraph extends Analysis {
 
 			BitSet srcOut = this.outgoing[src.id];
 			if (srcOut == null) {
-				srcOut = new BitSet(tmpEdges.length);
+				srcOut = new BitSet(this.virtualNumberEdges);
 				this.outgoing[src.id] = srcOut;
-				this.incoming[src.id] = new BitSet(tmpEdges.length);
+				this.incoming[src.id] = new BitSet(this.virtualNumberEdges);
 			}
 
 			BitSet tgtIn = this.incoming[tgt.id];
 			if (tgtIn == null) {
-				tgtIn = new BitSet(tmpEdges.length);
+				tgtIn = new BitSet(this.virtualNumberEdges);
 				this.incoming[tgt.id] = tgtIn;
-				this.outgoing[tgt.id] = new BitSet(tmpEdges.length);
+				this.outgoing[tgt.id] = new BitSet(this.virtualNumberEdges);
 			}
 
 			srcOut.set(edge.id);
@@ -300,29 +357,32 @@ public class NetworkGraph extends Analysis {
 		// Step 6:
 		//
 		// Initialize
-		for (NetworkEdge edge : tmpEdges) {
+		this.capacities.clear();
+		this.currentFlow.clear();
+		/*for (NetworkEdge edge : tmpEdges) {
 			visitedEdges++;
 			if (edge != null) {
-				edge.setCapacity(0);
+				//edge.setCapacity(0);
 				edge.setFlow(0);
 			}
-		}
+		}*/
 
 		// Recursively set the capacity
-		BitSet visited = new BitSet(tmpEdges.length);
+		BitSet visited = new BitSet(this.virtualNumberEdges);
 		// Set the capacities not for the dependent outgoing edges of join nodes.
 		BitSet not = (BitSet) sync.dependent.clone();
 		not.clear(sync.id);
 		for (NetworkEdge edge : tmpEdges) {
 			visitedEdges++;
-			if (edge.origin != null && not.get(edge.origin.id)) {
+			if (edge != null && edge.origin != null && not.get(edge.origin.id)) {
 				not.set(edge.id);
 			}
 		}
 
 		// Set the capacities
 		setCapacities(tmpEdges[sync.id], not, visited);
-		tmpEdges[sync.id].setCapacity(0);
+		//tmpEdges[sync.id].setCapacity(0);
+		this.capacities.clear(sync.id);
 
 		return true;
 	}
@@ -344,7 +404,8 @@ public class NetworkGraph extends Analysis {
 		visitedEdges++;
 
 		// Set the capacity to 1
-		current.setCapacity(1);
+		//current.setCapacity(1);
+		this.capacities.set(current.id);
 
 		// Visit the predecessor edges
 		// Get the source node
@@ -406,13 +467,13 @@ public class NetworkGraph extends Analysis {
 		nodeList.add(flowSource);
 
 		// Create an used set
-		BitSet used = new BitSet(tmpEdges.length);
+		BitSet used = new BitSet(this.virtualNumberEdges);
 
 		// Create an active edges set
-		BitSet label = new BitSet(tmpNodes.length);
+		BitSet label = new BitSet(this.virtualNumberNodes);
 		label.set(flowSource.id);
 
-		NetworkEdge[] predEdge = new NetworkEdge[tmpNodes.length];
+		NetworkEdge[] predEdge = new NetworkEdge[this.virtualNumberNodes];
 
 		boolean stop = false;
 		while (!nodeList.isEmpty()) {
@@ -435,8 +496,8 @@ public class NetworkGraph extends Analysis {
 					NetworkEdge e = tmpEdges[io];
 
 					// Is there a free capacity?
-					if ((!label.get(e.tgt.id) && e.currentFlow < e.capacity)
-							|| (!label.get(e.src.id) && e.currentFlow > 0)) {
+					if ((!label.get(e.tgt.id) && (currentFlow.get(e.id) ? 1 : 0) < (capacities.get(e.id) ? 1 : 0))//e.capacity)
+							|| (!label.get(e.src.id) && currentFlow.get(e.id))) {//e.currentFlow > 0)) {
 
 						// Yes, then add it.
 
@@ -484,10 +545,12 @@ public class NetworkGraph extends Analysis {
 				NetworkEdge e = predEdge[current.id];
 				path.set(e.id);
 				if (e.tgt.id == current.id) {
-					e.addFlow(e.capacity);
+					//e.addFlow(this.capacities.get(e.id) ? 1 : 0);//e.capacity);
+					if (this.capacities.get(e.id)) currentFlow.set(e.id);
 					current = e.src;
 				} else {
-					e.addFlow((-1) * e.capacity);
+					//e.addFlow((-1) * (this.capacities.get(e.id) ? 1 : 0));
+					if (this.capacities.get(e.id)) currentFlow.clear(e.id);
 					current = e.tgt;
 				}
 			}
@@ -570,12 +633,12 @@ public class NetworkGraph extends Analysis {
 		/**
 		 * Information for the max flow algorithm: The current flow
 		 */
-		private int currentFlow = 0;
+		//private int currentFlow = 0;
 
 		/**
 		 * Information for the max flow algorithm: The capacity of the edge
 		 */
-		private int capacity = 0;
+		//private int capacity = 0;
 
 		/**
 		 * The constructor.
@@ -599,9 +662,11 @@ public class NetworkGraph extends Analysis {
 		 * @param f
 		 *            The current flow.
 		 */
-		public void setFlow(int f) {
-			this.currentFlow = f;
-		}
+		/*public void setFlow(int f) {
+			//this.currentFlow = f;
+			if (f > 0) currentFlow.set(this.id);
+			else currentFlow.clear(this.id);
+		}*/
 
 		/**
 		 * Adds the flow to the current flow
@@ -609,9 +674,11 @@ public class NetworkGraph extends Analysis {
 		 * @param f
 		 *            The flow.
 		 */
-		public void addFlow(int f) {
-			this.currentFlow += f;
-		}
+		/*public void addFlow(int f) {
+			//this.currentFlow += f;
+			if (f > 0) currentFlow.set(this.id);
+			else currentFlow.clear(this.id);
+		}*/
 
 		/**
 		 * Sets the capacity of the edge
@@ -619,14 +686,14 @@ public class NetworkGraph extends Analysis {
 		 * @param c
 		 *            The capacity.
 		 */
-		public void setCapacity(int c) {
+		/*public void setCapacity(int c) {
 			this.capacity = c;
-		}
+		}*/
 
 		@Override
 		public String toString() {
 			return "E" + id + "(" + src.id + " -> " + tgt.id + ",("
-					+ this.currentFlow + "," + this.capacity + ")"
+					//+ this.currentFlow + "," + this.capacity + ")"
 					+ (origin == null ? "" : "," + origin.id) + ")";
 		}
 	}
