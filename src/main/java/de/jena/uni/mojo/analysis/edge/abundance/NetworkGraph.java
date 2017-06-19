@@ -87,27 +87,46 @@ public class NetworkGraph extends Analysis {
 	private int visitedEdges = 0;
 
 	/**
-	 * Stores the sync edges which had been already checked.
+	 * Stores the meeting points which had been already checked.
 	 */
 	private BitSet checked;
-	
+
+	/**
+	 * The maximum number of temporary edges
+	 */
 	private final int maxAdditionalEdges;
-	
-	private final int maxAdditionalNodes;
-	
+
+	/**
+	 * The current number of virtual edges.
+	 */
 	private int virtualNumberEdges;
-	
+
+	/**
+	 * The current number of virtual nodes.
+	 */
 	private int virtualNumberNodes;
-	
+
+	/**
+	 * A bit set representing the capacities of the edges (false is 0, true is
+	 * 1)
+	 */
 	private final BitSet capacities;
-	
+
+	/**
+	 * A bit set representing the current flow (false is 0, true is 1)
+	 */
 	private final BitSet currentFlow;
-	
+
+	/**
+	 * A bit set storing the edges, which were replaced.
+	 */
 	private final BitSet replaced;
 
-	private final HashMap<Object, Object> virtualEdgeOrigin
-		= new HashMap<>();
-	
+	/**
+	 * Mapping between virtual and original edges.
+	 */
+	private final HashMap<Integer, NetworkEdge> virtualEdgeOrigin = new HashMap<>();
+
 	/**
 	 * The constructor.
 	 * 
@@ -118,27 +137,28 @@ public class NetworkGraph extends Analysis {
 	 * @param information
 	 *            The information for analysis.
 	 */
-	public NetworkGraph(WorkflowGraph graph, WGNode[] nodeMap,
-			AnalysisInformation information) {
+	public NetworkGraph(WorkflowGraph graph, WGNode[] nodeMap, AnalysisInformation information) {
 		super(graph, nodeMap, information);
 		this.edges = new NetworkEdge[graph.getEdges().size()];
 		this.replaced = new BitSet(this.edges.length);
-		
+
 		int max = 0;
-		BitSet forkSet = graph.getForkSet();
+		BitSet forkSet = (BitSet) graph.getForkSet().clone();
+		forkSet.or(graph.getOrForkSet());
 		BitSet[] outgoing = graph.getOutgoingEdges();
+		// Determine the maximum number of outgoing edges of forks
 		for (int f = forkSet.nextSetBit(0); f >= 0; f = forkSet.nextSetBit(f + 1)) {
 			max = Math.max(outgoing[f].cardinality(), max);
 		}
 		this.maxAdditionalEdges = edges.length + max * 2;
-		this.maxAdditionalNodes = nodeMap.length + max + 1;
 		this.tmpEdges = new NetworkEdge[maxAdditionalEdges];
+		int maxAdditionalNodes = nodeMap.length + max + 1;
 		this.incoming = new BitSet[maxAdditionalNodes];
 		this.outgoing = new BitSet[maxAdditionalNodes];
-		
+
 		this.capacities = new BitSet(maxAdditionalEdges);
 		this.currentFlow = new BitSet(maxAdditionalEdges);
-		
+
 		initialize();
 	}
 
@@ -151,10 +171,10 @@ public class NetworkGraph extends Analysis {
 		for (Edge edge : wgEdges) {
 			visitedEdges++;
 			// Create a new network edge
-			edges[edge.id] = new NetworkEdge(edge.id, edge.src.getId(),
-					edge.tgt.getId());
+			NetworkEdge tmp = new NetworkEdge(edge.id, edge.src.getId(), edge.tgt.getId());
+			edges[edge.id] = tmp;
+			tmpEdges[edge.id] = tmp;
 		}
-		System.arraycopy(edges, 0, tmpEdges, 0, edges.length);
 	}
 
 	@Override
@@ -163,8 +183,7 @@ public class NetworkGraph extends Analysis {
 		for (BitSet path : lastResult) {
 			for (int p = path.nextSetBit(0); p >= 0; p = path.nextSetBit(p + 1)) {
 				NetworkEdge edge = tmpEdges[p];
-				NetworkEdge origin = (NetworkEdge) this.virtualEdgeOrigin.get(edge);
-				//if (edge.origin != null) {
+				NetworkEdge origin = this.virtualEdgeOrigin.get(edge);
 				if (origin != null) {
 					path.clear(p);
 					path.set(origin.id);
@@ -181,24 +200,24 @@ public class NetworkGraph extends Analysis {
 	 *            The fork node.
 	 */
 	public void transformFor(WGNode fork) {
-		// Clear the lists
+		// Clear the virtual edges.
 		for (int e = edges.length; e < this.virtualNumberEdges - 1; e++) {
 			tmpEdges[e] = null;
 		}
+		// Reset the replaced edges.
 		for (int r = replaced.nextSetBit(0); r >= 0; r = replaced.nextSetBit(r + 1)) {
 			tmpEdges[r] = edges[r];
 		}
-
 		// Clear the replaced set
 		replaced.clear();
-		
 		// Clear the already checked set
 		checked = new BitSet(edges.length);
+		// Clear the virtual edges mapping
+		this.virtualEdgeOrigin.clear();
 
 		//
 		// STEP 1:
 		//
-
 		visitedEdges++;
 
 		// Define two counters.
@@ -209,18 +228,13 @@ public class NetworkGraph extends Analysis {
 		int nFork = fork.getId();
 		// Copy the network fork
 		int cFork = nodeCounter++;
-		// Later, we have to remove this node
 
-		this.virtualEdgeOrigin.clear();
-		
 		// Create a node for each outgoing node of
 		// the fork
 		BitSet outgoing = graph.getOutgoingEdges()[fork.getId()];
-		for (int o = outgoing.nextSetBit(0); o >= 0; o = outgoing
-				.nextSetBit(o + 1)) {
+		for (int o = outgoing.nextSetBit(0); o >= 0; o = outgoing.nextSetBit(o + 1)) {
 			visitedEdges += 3;
 			int mNode = nodeCounter++;
-			this.virtualEdgeOrigin.put(mNode, edges[o]);
 
 			//
 			// STEP 3:
@@ -229,8 +243,8 @@ public class NetworkGraph extends Analysis {
 			NetworkEdge out = edges[o];
 			// Create a copy
 			NetworkEdge cout = new NetworkEdge(o, mNode, out.tgt);
-			//cout.origin = out;
-			this.virtualEdgeOrigin.put(cout, out);
+			// cout.origin = out;
+			this.virtualEdgeOrigin.put(cout.id, out);
 			// Replace
 			tmpEdges[o] = cout;
 			this.replaced.set(o);
@@ -239,18 +253,16 @@ public class NetworkGraph extends Analysis {
 			// STEP 4:
 			//
 			// Create two new edges
-			NetworkEdge oldForkMerge = new NetworkEdge(edgeCounter, nFork,
-					mNode);
-			//oldForkMerge.origin = out;
-			this.virtualEdgeOrigin.put(oldForkMerge, out);
+			NetworkEdge oldForkMerge = new NetworkEdge(edgeCounter, nFork, mNode);
+			// oldForkMerge.origin = out;
+			this.virtualEdgeOrigin.put(oldForkMerge.id, out);
 			tmpEdges[edgeCounter++] = oldForkMerge;
-			NetworkEdge newForkMerge = new NetworkEdge(edgeCounter, cFork,
-					mNode);
-			//newForkMerge.origin = out;
-			this.virtualEdgeOrigin.put(newForkMerge, out);
+			NetworkEdge newForkMerge = new NetworkEdge(edgeCounter, cFork, mNode);
+			// newForkMerge.origin = out;
+			this.virtualEdgeOrigin.put(newForkMerge.id, out);
 			tmpEdges[edgeCounter++] = newForkMerge;
 		}
-		
+
 		this.virtualNumberNodes = nodeCounter + 1;
 		this.virtualNumberEdges = edgeCounter + 1;
 
@@ -258,17 +270,15 @@ public class NetworkGraph extends Analysis {
 		// STEP 2:
 		//
 		// Get the incoming edge of the fork
-		NetworkEdge inEdge = edges[graph.getIncomingEdges()[fork.getId()]
-				.nextSetBit(0)];
+		NetworkEdge inEdge = edges[graph.getIncomingEdges()[fork.getId()].nextSetBit(0)];
 		// Create a copy to the new fork copy
 		NetworkEdge cinEdge = new NetworkEdge(inEdge.id, inEdge.src, cFork);
-		//cinEdge.origin = inEdge;
-		this.virtualEdgeOrigin.put(cinEdge, inEdge);
+		this.virtualEdgeOrigin.put(cinEdge.id, inEdge);
 		// Replace
 		// tmpEdges.add(cinEdge);
 		tmpEdges[inEdge.id] = cinEdge;
 		replaced.set(inEdge.id);
-		
+
 		for (int i = 0; i < this.incoming.length; i++) {
 			if (this.incoming[i] != null)
 				this.incoming[i].clear();
@@ -335,13 +345,13 @@ public class NetworkGraph extends Analysis {
 		this.capacities.clear();
 		this.currentFlow.clear();
 
-		// Set the capacities not for the dependent outgoing edges of join nodes.
+		// Set the capacities not for the dependent outgoing edges of join
+		// nodes.
 		BitSet not = (BitSet) sync.dependent.clone();
 		not.clear(sync.id);
 		for (NetworkEdge edge : tmpEdges) {
 			visitedEdges++;
-			//if (edge != null && edge.origin != null && not.get(edge.origin.id)) {
-			NetworkEdge origin = (NetworkEdge) this.virtualEdgeOrigin.get(edge);
+			NetworkEdge origin = this.virtualEdgeOrigin.get(edge);
 			if (edge != null && origin != null && not.get(origin.id)) {
 				not.set(edge.id);
 			}
@@ -354,7 +364,6 @@ public class NetworkGraph extends Analysis {
 
 		return true;
 	}
-
 
 	/**
 	 * Determine the max flow and therefore the paths.
@@ -417,8 +426,7 @@ public class NetworkGraph extends Analysis {
 			inout.or(outgoing[current]);
 
 			// For all in and outgoing edges
-			for (int io = inout.nextSetBit(0); io >= 0; io = inout
-					.nextSetBit(io + 1)) {
+			for (int io = inout.nextSetBit(0); io >= 0; io = inout.nextSetBit(io + 1)) {
 
 				// If it is not already used
 				if (!used.get(io)) {
@@ -429,11 +437,10 @@ public class NetworkGraph extends Analysis {
 					NetworkEdge e = tmpEdges[io];
 
 					// Is there a free capacity?
-					if ((!label.get(e.tgt) && (currentFlow.get(e.id) ? 1 : 0) < (capacities.get(e.id) ? 1 : 0))//e.capacity)
-							|| (!label.get(e.src) && currentFlow.get(e.id))) {//e.currentFlow > 0)) {
+					if ((!label.get(e.tgt) && (currentFlow.get(e.id) ? 1 : 0) < (capacities.get(e.id) ? 1 : 0))
+							|| (!label.get(e.src) && currentFlow.get(e.id))) {
 
 						// Yes, then add it.
-
 						int n;
 						if (!label.get(e.tgt)) {
 							n = e.tgt;
@@ -478,12 +485,12 @@ public class NetworkGraph extends Analysis {
 				NetworkEdge e = predEdge[current];
 				path.set(e.id);
 				if (e.tgt == current) {
-					//e.addFlow(this.capacities.get(e.id) ? 1 : 0);//e.capacity);
-					if (this.capacities.get(e.id)) currentFlow.set(e.id);
+					if (this.capacities.get(e.id))
+						currentFlow.set(e.id);
 					current = e.src;
 				} else {
-					//e.addFlow((-1) * (this.capacities.get(e.id) ? 1 : 0));
-					if (this.capacities.get(e.id)) currentFlow.clear(e.id);
+					if (this.capacities.get(e.id))
+						currentFlow.clear(e.id);
 					current = e.tgt;
 				}
 			}
@@ -533,7 +540,6 @@ public class NetworkGraph extends Analysis {
 			this.tgt = tgt;
 		}
 
-
 		@Override
 		public String toString() {
 			return "E" + id + "(" + src + " -> " + tgt + ")";
@@ -543,8 +549,7 @@ public class NetworkGraph extends Analysis {
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("Network graph (" + flowSource + ", " + flowSink + ")"
-				+ "\n");
+		builder.append("Network graph (" + flowSource + ", " + flowSink + ")" + "\n");
 		for (NetworkEdge edge : tmpEdges) {
 			builder.append("\t" + edge + "\n");
 		}

@@ -73,7 +73,10 @@ public class StrongComponentsAnalysis extends Analysis {
 	 */
 	private int edgesVisited = 0;
 	
-	public final ArrayList<BitSet> components = new ArrayList<BitSet>();
+	/**
+	 * The list of components (cycles).
+	 */
+	private final ArrayList<BitSet> components = new ArrayList<BitSet>();
 
 
 	/**
@@ -150,6 +153,14 @@ public class StrongComponentsAnalysis extends Analysis {
 				this.components.add(comp);
 			}
 		}
+	}
+	
+	/**
+	 * Get the components.
+	 * @return The components as ArrayList.
+	 */
+	public ArrayList<BitSet> getComponents() {
+		return this.components;
 	}
 
 }

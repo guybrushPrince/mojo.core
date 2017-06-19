@@ -103,7 +103,15 @@ public class AbundanceAnalysis extends Analysis {
 	 */
 	private final BitSet[] meetingPoints;
 	
+	/**
+	 * The components (parts of the graph) which build cycles
+	 */
 	private final ArrayList<BitSet> components;
+	
+	/**
+	 * A bitset containing each outgoing edge of all join nodes. 
+	 */
+	private BitSet outgoingJoins;
 
 	/**
 	 * The constructor of the abundance analysis.
@@ -116,6 +124,8 @@ public class AbundanceAnalysis extends Analysis {
 	 *            The analysis information.
 	 * @param edgeAnalysis
 	 *            The dominator edge analysis.
+	 * @param strongAnalysis
+	 * 			  The strong connected components analysis.
 	 */
 	public AbundanceAnalysis(WorkflowGraph graph, WGNode[] map,
 			AnalysisInformation reporter, DominatorEdgeAnalysis edgeAnalysis,
@@ -126,13 +136,14 @@ public class AbundanceAnalysis extends Analysis {
 		this.outgoing = edgeAnalysis.outgoing;
 		this.hasDefinitions = new BitSet(edges.size());
 		this.meetingPoints = new BitSet[graph.getNodeList().size()];
+		// Initialize the sets for the meeting points
 		for (WGNode fork: graph.getForkList()) {
 			this.meetingPoints[fork.getId()] = new BitSet(edges.size());
 		}
 		for (WGNode orfork: graph.getOrForkList()) {
 			this.meetingPoints[orfork.getId()] = new BitSet(edges.size());
 		}
-		this.components = strongAnalysis.components;
+		this.components = strongAnalysis.getComponents();
 	}
 
 	@Override
@@ -146,20 +157,11 @@ public class AbundanceAnalysis extends Analysis {
 		// Assignment Form and the Control Dependence Graph", Cytron et al.
 		// p. 466).
 
-		reporter.startTimeMeasurement(graph, "TEST_PHI");
-		
 		// Step 2: Determine the places for phi-functions
 		setPhiFunctions();
-		reporter.endTimeMeasurement(graph, "TEST_PHI");
-		
-		reporter.startTimeMeasurement(graph, "TEST_EXEC");
 		
 		// Step 2b: Determine the dependencies of the edges
 		determineExecDependencies();
-		
-		reporter.endTimeMeasurement(graph, "TEST_EXEC");
-
-		reporter.startTimeMeasurement(graph, "TEST");
 		
 		// Step 3:
 		// Build the network graph
@@ -172,22 +174,25 @@ public class AbundanceAnalysis extends Analysis {
 			boolean isTransformed = false;
 			// Clear the already checked set
 			checked.clear();
-			//for (Definition def: definitions) {
 			BitSet meetPoints = this.meetingPoints[fork.getId()];
 			for (int m = meetPoints.nextSetBit(0); m >= 0; m = meetPoints.nextSetBit(m + 1)) {
-				Edge meetingPoint = edges.get(m);//def.getEdge();
+				Edge meetingPoint = edges.get(m);
 				if (meetingPoint.src.getType() == Type.JOIN ||
 						meetingPoint.src.getType() == Type.OR_JOIN ||
 						checked.get(meetingPoint.id)) continue;
 				
 				Edge in = edges.get(incoming[fork.getId()].nextSetBit(0));
 				
+				// We do not have to visit meeting points which are an outgoing edge
+				// of a fork if the fork is not within a cycle.
 				if (meetingPoint.src.getId() == fork.getId() && !in.inCycle) continue;
 				
+				// Transform the network graph if needed.
 				if (!isTransformed) {
 					network.transformFor(fork);
 					isTransformed = true;
 				}
+				// Set the capacities
 				if (!network.setCapacities(fork, meetingPoint)) continue;
 				// Determine the max flow
 				errors.addAll(network.compute());
@@ -243,17 +248,11 @@ public class AbundanceAnalysis extends Analysis {
 			edgesVisited += network.getVisitedEdges();
 		}
 		
-		reporter.endTimeMeasurement(graph, "TEST");
-
 		// Store information about the analysis.
 		reporter.put(graph, AnalysisInformation.NUMBER_LACK_OF_SYNCHRONIZATION,
 				errors.size());
 		reporter.put(graph, ABUNDANCE_NUMBER_VISITED_EDGES, edgesVisited);
 		
-		
-		reporter.put(graph, "TEST_EXEC_EDGES", execVisited);
-		reporter.put(graph, "TEST_EXEC_EDGES_HANDLED", execHandled);
-
 		return errors;
 	}
 
@@ -283,17 +282,16 @@ public class AbundanceAnalysis extends Analysis {
 				defineEdges.clear(next);
 				Edge n = edges.get(next);
 				
-				// Create a definition for the outgoing edge.
-				/*Definition outDef = new Definition(definitionsCounter++,
-						n, in);
-				definitions.add(outDef);*/
-				// meetingPoints[fork.getId()].set(n.id);
+				// If the edge is the outgoing edge of the fork...
 				if (n.src.getId() == fork.getId()) {
+					// ... and the fork is within a cycle ...
 					if (in.inCycle) {
+						// ... then it could be important meeting point
 						this.meetingPoints[fork.getId()].set(n.id);
 						this.hasDefinitions.set(n.id);
 					}
 				} else {
+					// It is an important meeting point
 					meetingPoints[fork.getId()].set(n.id);
 					if (n.src.getType() != Type.JOIN && 
 						n.src.getType() != Type.OR_JOIN) {
@@ -311,30 +309,21 @@ public class AbundanceAnalysis extends Analysis {
 						in.syncEdges.set(syncEdge.id);
 
 
-						/*Definition def = new Definition(definitionsCounter++,
-								syncEdge, in);
-						definitions.add(def);*/
 						meetingPoints[fork.getId()].set(syncEdge.id);
 						if (syncEdge.src.getType() != Type.JOIN && 
 							syncEdge.src.getType() != Type.OR_JOIN) {
 							this.hasDefinitions.set(syncEdge.id);
 						}
-						//def.isPhi = true;
 
-						/*if (in.postDominatorList.getLast().id != syncEdge.id
-								&& n.postDominatorList.getLast().id != syncEdge.id) {*/
+						if (in.postDominatorList.getLast().id != syncEdge.id
+								&& n.postDominatorList.getLast().id != syncEdge.id) {
 							defineEdges.set(syncEdge.id);
-						//}
+						}
 					}
 				}
 			}
 		}
 	}
-	
-	private int execVisited = 0;
-	private int execHandled = 0;
-	
-	private BitSet outgoingJoins;
 	
 	/**
 	 * Performs a depth first search on the `allowed` edges.
@@ -347,7 +336,6 @@ public class AbundanceAnalysis extends Analysis {
 			BitSet allowed, 
 			BitSet visited) {
 		edgesVisited++;
-		execVisited++;
 		visited.set(current);
 		Edge e = this.edges.get(current);
 		BitSet succ = (BitSet) this.outgoing[e.tgt.getId()].clone();
@@ -370,7 +358,6 @@ public class AbundanceAnalysis extends Analysis {
 		BitSet reachable = new BitSet(numEdges);
 		
 		// Determine a set of all outgoing edges
-		
 		this.outgoingJoins = new BitSet(numEdges);
 		BitSet ogJoins = this.outgoingJoins;
 		BitSet joins = this.graph.getJoinSet();
@@ -378,6 +365,7 @@ public class AbundanceAnalysis extends Analysis {
 			ogJoins.or(this.outgoing[join]);
 		}
 		
+		// A set containing stable information.
 		BitSet exterior = new BitSet(numEdges);
 		
 		// The start edge
@@ -387,13 +375,15 @@ public class AbundanceAnalysis extends Analysis {
 		//for (Definition def: definitions) {
 		for (Edge cur: edges) {
 			edgesVisited++;
-			execVisited++;
 			
 			boolean ignore = true;
+			// If the current meeting point is in a cycle ...
 			if (cur.inCycle) {
 				BitSet comp = (BitSet) this.components.get(cur.component).clone();
 				comp.and(this.hasDefinitions);
+				// ... and it lies with at least one other meeting point within the cycle...
 				if (!comp.isEmpty()) {
+					// ... we cannot ignore it.
 					ignore = false;
 				}
 			}
@@ -401,9 +391,10 @@ public class AbundanceAnalysis extends Analysis {
 			if (ignore) continue;
 			if (!this.hasDefinitions.get(cur.id)) continue;
 			
-			execHandled++;
-			
-			// Determine the exterior
+			// Determine the exterior, that means, we began at the immediate
+			// dominator of the meeting point. Since each edge BEFORE the immediate
+			// dominator cannot be dependent from the meeting point, we do not
+			// have to check them.
 			exterior.set(0, numEdges);
 			int dom = cur.dominatorList.getLast().id;
 			exterior.clear(dom);
@@ -417,18 +408,15 @@ public class AbundanceAnalysis extends Analysis {
 			do {
 				oldReachable.and(reachable);
 				edgesVisited++;
-				execVisited++;
 				
 				// Perform a modified depth first search on remaining edges
 				remaining.clear();
-				//depthFirstSearch(start, reachable, remaining);
 				depthFirstSearch(dom, reachable, remaining);
 				reachable.and(remaining);
-				reachable.or(exterior); // TODO
+				reachable.or(exterior);
 
 				for (int join = joins.nextSetBit(0); join >= 0; join = joins.nextSetBit(join + 1)) {
 					edgesVisited++;
-					execVisited++;
 					remaining.or(reachable);
 					remaining.and(this.incoming[join]);
 					if (remaining.cardinality() < this.incoming[join].cardinality()) {

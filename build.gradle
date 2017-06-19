@@ -1,15 +1,29 @@
 apply plugin: 'java'
 apply plugin: 'eclipse'
+apply plugin: 'application'
 
-sourceCompatibility = 1.7
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
 version = '1.0'
+mainClassName = "de.jena.uni.mojo.Mojo"
 
 jar {
 	manifest {
 		attributes 	'Implementation-Title': 'Mojo Core',
-					'Implementation-Version': 1.0,
+					'Implementation-Version': version,
 					'Main-Class': 'de.jena.uni.mojo.Mojo'
 	}
+}
+
+task fatJar(type: Jar) {
+	manifest {
+		attributes 	'Implementation-Title': 'Mojo Core',
+					'Implementation-Version': version,
+					'Main-Class': 'de.jena.uni.mojo.Mojo'
+	}
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
 }
 
 repositories {
@@ -31,7 +45,17 @@ dependencies {
 	testCompile group: 'org.apache.commons', name: 'commons-io', version: '1.3.2'
 }
 
+configurations {
+    compile
+}
+
 javadoc {
 	source = sourceSets.main.allJava
 	classpath = configurations.compile
+}
+
+run {
+    if(project.hasProperty('args')){
+        args project.args.split('\\s+')
+    }
 }
