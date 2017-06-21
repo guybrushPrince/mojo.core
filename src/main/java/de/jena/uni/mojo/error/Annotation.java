@@ -381,7 +381,9 @@ public abstract class Annotation {
 		ArrayList<Edge> edgePath = new ArrayList<Edge>();
 		
 		for (int p = path.nextSetBit(0); p >= 0; p = path.nextSetBit(p + 1)) {
-			edgePath.add(edges.get(p));
+			if (p < edges.size()) {
+				edgePath.add(edges.get(p));
+			}
 		}
 		
 		return edgePath;

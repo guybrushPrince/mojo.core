@@ -361,6 +361,8 @@ public class NetworkGraph extends Analysis {
 		this.capacities.set(0, this.virtualNumberEdges);
 		this.capacities.andNot(not);
 		this.capacities.clear(sync.id);
+		Edge inFork = graph.getEdges().get(graph.getIncomingEdges()[fork.getId()].nextSetBit(0));
+		this.capacities.clear(inFork.postDominatorList.getLast().id);
 
 		return true;
 	}
