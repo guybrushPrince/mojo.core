@@ -156,6 +156,8 @@ public class AbundanceAnalysis extends Analysis {
 		// (Uses concepts of "Efficiently Computing Static Single
 		// Assignment Form and the Control Dependence Graph", Cytron et al.
 		// p. 466).
+		
+		determineBonds();
 
 		// Step 2: Determine the places for phi-functions
 		setPhiFunctions();
@@ -185,7 +187,7 @@ public class AbundanceAnalysis extends Analysis {
 				
 				// We do not have to visit meeting points which are an outgoing edge
 				// of a fork if the fork is not within a cycle.
-				if (meetingPoint.src.getId() == fork.getId() && !in.inCycle) continue;
+				if (meetingPoint.src.getId() == fork.getId() && !in.bond.get(in.id)) continue;
 				
 				// Transform the network graph if needed.
 				if (!isTransformed) {
@@ -255,6 +257,25 @@ public class AbundanceAnalysis extends Analysis {
 		
 		return errors;
 	}
+	
+	private void determineBonds() {
+		List<WGNode> forks = new ArrayList<WGNode>(graph.getForkList());
+		forks.addAll(graph.getOrForkList());
+		BitSet allowed = new BitSet(edges.size());
+		for (WGNode fork: forks) {
+			allowed.set(0, edges.size());
+			int in = this.incoming[fork.getId()].nextSetBit(0);
+			Edge inEdge = edges.get(in);
+			int pdom = inEdge.postDominatorList.getLast().id;
+			allowed.clear(pdom);
+			for (int s = outgoing[fork.getId()].nextSetBit(0); s >= 0; s = outgoing[fork.getId()].nextSetBit(s + 1)) {
+				depthFirstSearch(s, allowed, inEdge.bond);
+			}
+			inEdge.bond.set(pdom);
+			
+			//System.out.println("Bond for " + fork.getId() + " (" + in + "): " + inEdge.bond);
+		}
+	}
 
 	/**
 	 * Sets the phi-functions for each virtual variable of each fork node.
@@ -285,7 +306,8 @@ public class AbundanceAnalysis extends Analysis {
 				// If the edge is the outgoing edge of the fork...
 				if (n.src.getId() == fork.getId()) {
 					// ... and the fork is within a cycle ...
-					if (in.inCycle) {
+					//if (in.inCycle) {
+					if (in.bond.get(in.id)) {
 						// ... then it could be important meeting point
 						this.meetingPoints[fork.getId()].set(n.id);
 						this.hasDefinitions.set(n.id);
@@ -317,11 +339,17 @@ public class AbundanceAnalysis extends Analysis {
 
 						if (in.postDominatorList.getLast().id != syncEdge.id
 								&& n.postDominatorList.getLast().id != syncEdge.id) {
-							defineEdges.set(syncEdge.id);
+							if (in.bond.get(syncEdge.id)) {
+								defineEdges.set(syncEdge.id);
+							}
 						}
 					}
 				}
 			}
+			/*System.out.println("Meeting points for " + fork.getId() + ": " + meetingPoints[fork.getId()]);
+			for (int m = meetingPoints[fork.getId()].nextSetBit(0); m >= 0; m = meetingPoints[fork.getId()].nextSetBit(m + 1)) {
+				System.out.println("\t" + edges.get(m).src.getType());
+			}*/
 		}
 	}
 	
@@ -366,73 +394,94 @@ public class AbundanceAnalysis extends Analysis {
 		}
 		
 		// A set containing stable information.
-		BitSet exterior = new BitSet(numEdges);
+		//BitSet exterior = new BitSet(numEdges);
 		
 		// The start edge
-		int start = outgoing[graph.getStart().getId()].nextSetBit(0);
+		//int start = outgoing[graph.getStart().getId()].nextSetBit(0);
 		
 		// Determine the execution dependencies for each edge.
 		//for (Definition def: definitions) {
-		for (Edge cur: edges) {
-			edgesVisited++;
-			
-			boolean ignore = true;
-			// If the current meeting point is in a cycle ...
-			if (cur.inCycle) {
-				BitSet comp = (BitSet) this.components.get(cur.component).clone();
-				comp.and(this.hasDefinitions);
-				// ... and it lies with at least one other meeting point within the cycle...
-				if (!comp.isEmpty()) {
-					// ... we cannot ignore it.
-					ignore = false;
-				}
-			}
-
-			if (ignore) continue;
-			if (!this.hasDefinitions.get(cur.id)) continue;
-			
-			// Determine the exterior, that means, we began at the immediate
-			// dominator of the meeting point. Since each edge BEFORE the immediate
-			// dominator cannot be dependent from the meeting point, we do not
-			// have to check them.
-			exterior.set(0, numEdges);
-			int dom = cur.dominatorList.getLast().id;
-			exterior.clear(dom);
-			remaining.clear();
-			depthFirstSearch(start, exterior, remaining);
-			exterior.and(remaining);
-			
-			reachable.set(0, numEdges);
-			reachable.clear(cur.id);
-			oldReachable.set(0, numEdges);
-			do {
-				oldReachable.and(reachable);
+		List<WGNode> forks = new ArrayList<WGNode>(graph.getForkList());
+		forks.addAll(graph.getOrForkList());
+		for (WGNode fork: forks) {
+			BitSet meetingPoints = this.meetingPoints[fork.getId()];
+			int in = this.incoming[fork.getId()].nextSetBit(0);
+			Edge inEdge = edges.get(in);
+			for (int m = meetingPoints.nextSetBit(0); m >= 0; m = meetingPoints.nextSetBit(m + 1)) {
+				Edge cur = edges.get(m);
+			//for (Edge cur: edges) {		
 				edgesVisited++;
 				
-				// Perform a modified depth first search on remaining edges
-				remaining.clear();
-				depthFirstSearch(dom, reachable, remaining);
-				reachable.and(remaining);
-				reachable.or(exterior);
-
-				for (int join = joins.nextSetBit(0); join >= 0; join = joins.nextSetBit(join + 1)) {
-					edgesVisited++;
-					remaining.or(reachable);
-					remaining.and(this.incoming[join]);
-					if (remaining.cardinality() < this.incoming[join].cardinality()) {
-						reachable.andNot(this.outgoing[join]);
+				boolean ignore = true;
+				// If the current meeting point is in a cycle ...
+				if (cur.inCycle) {
+					BitSet comp = (BitSet) this.components.get(cur.component).clone();
+					comp.and(this.hasDefinitions);
+					// ... and it lies with at least one other meeting point within the cycle...
+					if (!comp.isEmpty()) {
+						// ... we cannot ignore it.
+						ignore = false;
 					}
 				}
-			} while (oldReachable.cardinality() > reachable.cardinality());
+	
+				if (ignore) continue;
+				if (!this.hasDefinitions.get(cur.id)) continue;
+				
+				// Determine the exterior, that means, we began at the immediate
+				// dominator of the meeting point. Since each edge BEFORE the immediate
+				// dominator cannot be dependent from the meeting point, we do not
+				// have to check them.
+				/*exterior.set(0, numEdges);
+				int dom = cur.dominatorList.getLast().id;
+				exterior.clear(dom);
+				remaining.clear();
+				depthFirstSearch(start, exterior, remaining);
+				exterior.and(remaining);*/
+				
+				//reachable.set(0, numEdges);
+				reachable.or(inEdge.bond);
+				reachable.clear(cur.id);
+				oldReachable.set(0, numEdges);
+				do {
+					oldReachable.and(reachable);
+					edgesVisited++;
 					
-			// We have reached a stable point, i.e., no edges can be eliminated
-			// from the graph anymore.
-			// Determine the edges being dependent from the current edge. These
-			// all edges being not in the all set.
-			remaining.set(0, numEdges);
-			remaining.andNot(reachable);
-			remaining.and(this.outgoingJoins); // Only those of joins are welcome
-			cur.dependent.or(remaining);			
+					// Perform a modified depth first search on remaining edges
+					remaining.clear();
+					//depthFirstSearch(dom, reachable, remaining);
+					depthFirstSearch(in, reachable, remaining);
+					reachable.and(remaining);
+					//reachable.or(exterior);
+	
+					for (int join = joins.nextSetBit(0); join >= 0; join = joins.nextSetBit(join + 1)) {
+						edgesVisited++;
+						remaining.clear();
+						remaining.or(inEdge.bond);
+						remaining.and(this.incoming[join]);
+						int inEdges = remaining.cardinality();
+						
+						remaining.clear();
+						remaining.or(reachable);
+						remaining.and(this.incoming[join]);
+						if (remaining.cardinality() < inEdges) {
+							reachable.andNot(this.outgoing[join]);
+						}
+					}
+				} while (oldReachable.cardinality() > reachable.cardinality());
+						
+				// We have reached a stable point, i.e., no edges can be eliminated
+				// from the graph anymore.
+				// Determine the edges being dependent from the current edge. These
+				// all edges being not in the all set.
+				//remaining.set(0, numEdges);
+				remaining.or(inEdge.bond);
+				remaining.andNot(reachable);
+				remaining.and(this.outgoingJoins); // Only those of joins are welcome
+				remaining.and(this.meetingPoints[fork.getId()]);
+				cur.dependentFork.put(in, (BitSet) remaining.clone());
+				
+				//System.out.println("Dependent for " + fork.getId() + " (" + in + ") and meeting point " + cur.id + ": " + remaining);
+			}
 		}
 	}
 }

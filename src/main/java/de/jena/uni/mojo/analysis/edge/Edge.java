@@ -19,6 +19,7 @@
 package de.jena.uni.mojo.analysis.edge;
 
 import java.util.BitSet;
+import java.util.HashMap;
 import java.util.LinkedList;
 
 import de.jena.uni.mojo.model.WGNode;
@@ -136,6 +137,10 @@ public class Edge {
 	 * Stores from which edge the current is approximated executed.
 	 */
 	public final BitSet isApproxExecutedBy;
+	
+	public final BitSet bond;
+	
+	public final HashMap<Integer, BitSet> dependentFork = new HashMap<Integer, BitSet>();
 
 	/**
 	 * The constructor that generates a new edge.
@@ -164,6 +169,8 @@ public class Edge {
 		this.isApproxExecutedBy = new BitSet(edges);
 		this.dominanceFrontierSet = new BitSet(edges);
 		this.postDominanceFrontierSet = new BitSet(edges);
+		
+		this.bond = new BitSet(edges);
 	}
 
 	@Override

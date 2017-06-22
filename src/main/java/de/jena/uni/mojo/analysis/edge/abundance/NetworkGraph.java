@@ -190,6 +190,10 @@ public class NetworkGraph extends Analysis {
 				}
 			}
 		}
+		/*System.out.println("Find for " + this.flowSource + " and " + this.flowSink + ": ");
+		for (BitSet path: lastResult) {
+			System.out.println("\t" + path);
+		}*/
 		return Collections.emptyList();
 	}
 
@@ -334,6 +338,7 @@ public class NetworkGraph extends Analysis {
 		//
 		// Set the fork as flow source
 		this.flowSource = fork.getId();
+		Edge inFork = graph.getEdges().get(graph.getIncomingEdges()[fork.getId()].nextSetBit(0));
 
 		// Set the source of the sync edge as flow sink
 		this.flowSink = tmpEdges[sync.id].src;
@@ -347,7 +352,13 @@ public class NetworkGraph extends Analysis {
 
 		// Set the capacities not for the dependent outgoing edges of join
 		// nodes.
-		BitSet not = (BitSet) sync.dependent.clone();
+		BitSet dependent = sync.dependentFork.get(inFork.id);
+		BitSet not;
+		if (dependent == null) {
+			not = new BitSet(edges.length);
+		} else {
+			not = (BitSet) dependent.clone();
+		}
 		not.clear(sync.id);
 		for (NetworkEdge edge : tmpEdges) {
 			visitedEdges++;
@@ -361,8 +372,16 @@ public class NetworkGraph extends Analysis {
 		this.capacities.set(0, this.virtualNumberEdges);
 		this.capacities.andNot(not);
 		this.capacities.clear(sync.id);
-		Edge inFork = graph.getEdges().get(graph.getIncomingEdges()[fork.getId()].nextSetBit(0));
 		this.capacities.clear(inFork.postDominatorList.getLast().id);
+		
+		this.capacities.and(inFork.bond);
+		this.capacities.set(inFork.id);
+		// Clear the virtual edges.
+		for (int e = edges.length; e < this.virtualNumberEdges - 1; e++) {
+			this.capacities.set(tmpEdges[e].id);
+		}
+		
+		//System.out.println("Set capacities for " + fork.getId() + "(" + inFork.id + ") and meeting point " + sync.id + ": " + this.capacities);
 
 		return true;
 	}
