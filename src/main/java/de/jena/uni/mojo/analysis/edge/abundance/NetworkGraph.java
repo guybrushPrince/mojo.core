@@ -372,7 +372,6 @@ public class NetworkGraph extends Analysis {
 		this.capacities.set(0, this.virtualNumberEdges);
 		this.capacities.andNot(not);
 		this.capacities.clear(sync.id);
-		this.capacities.clear(inFork.postDominatorList.getLast().id);
 		
 		this.capacities.and(inFork.bond);
 		this.capacities.set(inFork.id);
@@ -380,8 +379,6 @@ public class NetworkGraph extends Analysis {
 		for (int e = edges.length; e < this.virtualNumberEdges - 1; e++) {
 			this.capacities.set(tmpEdges[e].id);
 		}
-		
-		//System.out.println("Set capacities for " + fork.getId() + "(" + inFork.id + ") and meeting point " + sync.id + ": " + this.capacities);
 
 		return true;
 	}

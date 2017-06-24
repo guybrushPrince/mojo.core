@@ -157,12 +157,13 @@ public class AbundanceAnalysis extends Analysis {
 		// Assignment Form and the Control Dependence Graph", Cytron et al.
 		// p. 466).
 		
+		// Step 2a: Determine the scope of the forks
 		determineBonds();
 
-		// Step 2: Determine the places for phi-functions
+		// Step 2b: Determine the places for phi-functions
 		setPhiFunctions();
 		
-		// Step 2b: Determine the dependencies of the edges
+		// Step 2c: Determine the dependencies of the edges
 		determineExecDependencies();
 		
 		// Step 3:
@@ -255,6 +256,13 @@ public class AbundanceAnalysis extends Analysis {
 				errors.size());
 		reporter.put(graph, ABUNDANCE_NUMBER_VISITED_EDGES, edgesVisited);
 		
+		/*int sum = 0;
+		for (BitSet mp: this.meetingPoints) {
+			if (mp != null) sum += mp.cardinality();
+		}
+		
+		reporter.put(graph, "SUM_MEETING_POINTS", sum);*/
+		
 		return errors;
 	}
 	
@@ -271,9 +279,7 @@ public class AbundanceAnalysis extends Analysis {
 			for (int s = outgoing[fork.getId()].nextSetBit(0); s >= 0; s = outgoing[fork.getId()].nextSetBit(s + 1)) {
 				depthFirstSearch(s, allowed, inEdge.bond);
 			}
-			inEdge.bond.set(pdom);
-			
-			//System.out.println("Bond for " + fork.getId() + " (" + in + "): " + inEdge.bond);
+			inEdge.bond.set(pdom);			
 		}
 	}
 
@@ -306,7 +312,6 @@ public class AbundanceAnalysis extends Analysis {
 				// If the edge is the outgoing edge of the fork...
 				if (n.src.getId() == fork.getId()) {
 					// ... and the fork is within a cycle ...
-					//if (in.inCycle) {
 					if (in.bond.get(in.id)) {
 						// ... then it could be important meeting point
 						this.meetingPoints[fork.getId()].set(n.id);
@@ -346,10 +351,6 @@ public class AbundanceAnalysis extends Analysis {
 					}
 				}
 			}
-			/*System.out.println("Meeting points for " + fork.getId() + ": " + meetingPoints[fork.getId()]);
-			for (int m = meetingPoints[fork.getId()].nextSetBit(0); m >= 0; m = meetingPoints[fork.getId()].nextSetBit(m + 1)) {
-				System.out.println("\t" + edges.get(m).src.getType());
-			}*/
 		}
 	}
 	
@@ -393,14 +394,7 @@ public class AbundanceAnalysis extends Analysis {
 			ogJoins.or(this.outgoing[join]);
 		}
 		
-		// A set containing stable information.
-		//BitSet exterior = new BitSet(numEdges);
-		
-		// The start edge
-		//int start = outgoing[graph.getStart().getId()].nextSetBit(0);
-		
 		// Determine the execution dependencies for each edge.
-		//for (Definition def: definitions) {
 		List<WGNode> forks = new ArrayList<WGNode>(graph.getForkList());
 		forks.addAll(graph.getOrForkList());
 		for (WGNode fork: forks) {
@@ -409,7 +403,6 @@ public class AbundanceAnalysis extends Analysis {
 			Edge inEdge = edges.get(in);
 			for (int m = meetingPoints.nextSetBit(0); m >= 0; m = meetingPoints.nextSetBit(m + 1)) {
 				Edge cur = edges.get(m);
-			//for (Edge cur: edges) {		
 				edgesVisited++;
 				
 				boolean ignore = true;
@@ -427,18 +420,6 @@ public class AbundanceAnalysis extends Analysis {
 				if (ignore) continue;
 				if (!this.hasDefinitions.get(cur.id)) continue;
 				
-				// Determine the exterior, that means, we began at the immediate
-				// dominator of the meeting point. Since each edge BEFORE the immediate
-				// dominator cannot be dependent from the meeting point, we do not
-				// have to check them.
-				/*exterior.set(0, numEdges);
-				int dom = cur.dominatorList.getLast().id;
-				exterior.clear(dom);
-				remaining.clear();
-				depthFirstSearch(start, exterior, remaining);
-				exterior.and(remaining);*/
-				
-				//reachable.set(0, numEdges);
 				reachable.or(inEdge.bond);
 				reachable.clear(cur.id);
 				oldReachable.set(0, numEdges);
@@ -448,10 +429,8 @@ public class AbundanceAnalysis extends Analysis {
 					
 					// Perform a modified depth first search on remaining edges
 					remaining.clear();
-					//depthFirstSearch(dom, reachable, remaining);
 					depthFirstSearch(in, reachable, remaining);
 					reachable.and(remaining);
-					//reachable.or(exterior);
 	
 					for (int join = joins.nextSetBit(0); join >= 0; join = joins.nextSetBit(join + 1)) {
 						edgesVisited++;
@@ -479,8 +458,6 @@ public class AbundanceAnalysis extends Analysis {
 				remaining.and(this.outgoingJoins); // Only those of joins are welcome
 				remaining.and(this.meetingPoints[fork.getId()]);
 				cur.dependentFork.put(in, (BitSet) remaining.clone());
-				
-				//System.out.println("Dependent for " + fork.getId() + " (" + in + ") and meeting point " + cur.id + ": " + remaining);
 			}
 		}
 	}
