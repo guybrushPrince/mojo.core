@@ -411,8 +411,10 @@ public class DeadlockAnalysis extends Analysis {
 			List<WGNode> splits = new ArrayList<WGNode>();
 			// Determine the path to the join
 			getPathsToJoin(from.id, inEdge, vis, splits);
+			BitSet v = new BitSet(incomeJoin.size());
+			inverseDepthFirstSearch(inEdge, from.id, vis, v);
 			// Add the path to the failure annotation
-			annotation.addPathToFailure(vis);
+			annotation.addPathToFailure(v);
 
 			// Determine each (or-)split whose successors
 			// are appr. exec. edges however not its incoming

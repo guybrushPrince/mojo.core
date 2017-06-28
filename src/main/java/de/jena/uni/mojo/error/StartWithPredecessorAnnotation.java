@@ -30,7 +30,9 @@ public class StartWithPredecessorAnnotation extends Annotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "Start element has at least one incoming edge. Handled as Task.";
+	public static final String DESCRIPTION = "The start event has at "
+			+ "least one incoming edge. Since that is not possible in "
+			+ "processes, it is handled as a task.";
 
 	/**
 	 * The constructor defines an start with predecessor annotation and hides

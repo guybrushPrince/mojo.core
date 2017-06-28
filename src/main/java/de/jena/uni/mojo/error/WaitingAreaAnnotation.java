@@ -38,8 +38,8 @@ public class WaitingAreaAnnotation extends Annotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "The select OR-join has "
-			+ "to wait for all the other selected nodes if both are active.";
+	public static final String DESCRIPTION = "The selected inclusive converging gateway has "
+			+ "to wait for all the other selected bpmn elements if both are activated.";
 	
 	/**
 	 * The name of the waiting area attribute.

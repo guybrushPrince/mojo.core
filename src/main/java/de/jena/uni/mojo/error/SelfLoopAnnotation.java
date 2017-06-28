@@ -30,7 +30,8 @@ public class SelfLoopAnnotation extends Annotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "Element is connected to itself.";
+	public static final String DESCRIPTION = "A task, gateway, or event cannot "
+			+ "be connected to itself.";
 
 	/**
 	 * The constructor defines a self loop annotation and hides the

@@ -30,8 +30,10 @@ public class AbundanceCycleAnnotation extends AbundanceAnnotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "A fork or IOR split is the exit "
-			+ "of a cycle. The first node outside the cycle could be executed twice in series.";
+	public static final String DESCRIPTION = "The orange marked parallel "
+			+ "gateway may produce an arbitray set of controlflows since "
+			+ "at least two of its controlflows are not synchronized "
+			+ "before reaching the gateway again."; 
 
 	/**
 	 * The constructor defines an abundance cycle annotation and hides the

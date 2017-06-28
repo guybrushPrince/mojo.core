@@ -30,7 +30,7 @@ public class UnconnectedAnnotation extends Annotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "Business process is not fully connected.";
+	public static final String DESCRIPTION = "The process is unconnected.";
 
 	/**
 	 * The constructor defines an unconnected annotation and hides the

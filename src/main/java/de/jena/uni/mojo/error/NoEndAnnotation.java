@@ -30,7 +30,8 @@ public class NoEndAnnotation extends Annotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "No end detectable. The graph contains a loop that suppresses the detection.";
+	public static final String DESCRIPTION = "There is no end event. The "
+			+ "process contains a loop that suppresses the detection.";
 
 	/**
 	 * The constructor defines an no end annotation and hides the

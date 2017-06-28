@@ -30,7 +30,7 @@ public class GatewayIsActivityAnnotation extends Annotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "Gateway has only one in and outgoing edge. Handled as Task.";
+	public static final String DESCRIPTION = "The gateway has only one in and outgoing edge. It is handled as a task.";
 
 	/**
 	 * The constructor defines a gateway is activity annotation and hides

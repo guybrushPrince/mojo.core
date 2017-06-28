@@ -30,7 +30,8 @@ public class UnsupportedElementAnnotation extends Annotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "Element type not supported. Will be seen as task.";
+	public static final String DESCRIPTION = "The marked bpmn element is "
+			+ "not supported yet. It will be handled as a task.";
 
 	/**
 	 * The constructor defines an unsupported element annotation and hides the

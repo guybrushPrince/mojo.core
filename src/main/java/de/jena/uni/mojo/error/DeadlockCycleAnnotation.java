@@ -30,8 +30,8 @@ public class DeadlockCycleAnnotation extends DeadlockAnnotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "This join can only be "
-			+ "executed if and only if it was already executed.";
+	public static final String DESCRIPTION = "The marked parallel gateway (red) "
+			+ "can only be executed if and only if it was already executed.";
 
 	/**
 	 * The constructor defines an deadlock cycle annotation and hides the

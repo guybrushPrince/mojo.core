@@ -25,7 +25,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-
 import de.jena.uni.mojo.analysis.Analysis;
 import de.jena.uni.mojo.analysis.edge.Edge;
 import de.jena.uni.mojo.error.marker.Marker;
@@ -43,15 +42,16 @@ public class DeadlockAnnotation extends Annotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "There is no fork on a path from "
-			+ "the start node (orange) to this join (red) where this fork ever "
-			+ "makes it possible that this join (red) will be executed.";
-	
+	public static final String DESCRIPTION = "The execution is not guaranteed on "
+			+ "a path from the orange marked node to the convergent parallel "
+			+ "gateway (red). It is probable that the marked exclusive gateways "
+			+ "cause the error.";
+
 	/**
 	 * The name of the path to failure attribute.
 	 */
 	public static final String PATH_TO_FAILURE = "PathToFailure";
-	
+
 	/**
 	 * The name of the failure nodes attribute.
 	 */
@@ -155,27 +155,23 @@ public class DeadlockAnnotation extends Annotation {
 	public void printInformation(IdInterpreter interpreter) {
 		super.printInformation(interpreter);
 
-		System.out.printf("\t\t%-35s: %s%n", "Failure nodes (WFG)",
-				failureNodes.toString());
+		System.out.printf("\t\t%-35s: %s%n", "Failure nodes (WFG)", failureNodes.toString());
 
-		System.out.printf("\t\t%-35s: %s%n", "Failure nodes (Process)",
-				getInterpretedFailureNodes().toString());
+		System.out.printf("\t\t%-35s: %s%n", "Failure nodes (Process)", getInterpretedFailureNodes().toString());
 
 		System.out.printf("\t\t%-35s: %n", "Paths to the failure (WFG + Process)");
 
 		int pathCounter = 0;
 		for (BitSet path : this.pathsToFailure) {
 			pathCounter++;
-			
+
 			// Extract the workflow graph edges
 			List<Edge> wfgEdges = this.extractEdgePath(path);
 
-			System.out.printf("\t\t\t%-20s: %s%n", "Path " + pathCounter + " (WFG)",
-					wfgEdges.toString());
+			System.out.printf("\t\t\t%-20s: %s%n", "Path " + pathCounter + " (WFG)", wfgEdges.toString());
 
 			// Print the process nodes
-			System.out.printf("\t\t\t%-20s: %s%n",
-					"Path " + pathCounter + " (Process)",
+			System.out.printf("\t\t\t%-20s: %s%n", "Path " + pathCounter + " (Process)",
 					this.extractAbstractPath(wfgEdges).toString());
 		}
 
@@ -193,13 +189,11 @@ public class DeadlockAnnotation extends Annotation {
 			// Extract the origin objects
 			List<AbstractEdge> processEdges = this.extractAbstractPath(wfgEdges);
 
-			marker.addProcessAnnotation(PATH_TO_FAILURE,
-					interpreter.extractPath(processEdges), 4 + (pathCounter++));
+			marker.addProcessAnnotation(PATH_TO_FAILURE, interpreter.extractPath(processEdges), 4 + (pathCounter++));
 		}
 
 		// Create information about failure nodes
-		marker.addProcessAnnotation(FAILURE_NODES,
-				getIdString(getInterpretedFailureNodes(), interpreter), 3);
+		marker.addProcessAnnotation(FAILURE_NODES, getIdString(getInterpretedFailureNodes(), interpreter), 3);
 
 		return marker;
 	}

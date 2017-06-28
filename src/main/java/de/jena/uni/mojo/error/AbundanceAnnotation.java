@@ -40,8 +40,10 @@ public class AbundanceAnnotation extends Annotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "Two disjoint paths of a fork or OR "
-			+ "split meet firstly in a merge. This merge could be executed twice in series.";
+	public static final String DESCRIPTION = "At least two control flows of "
+			+ "the orange marked parallel gateway can cause an abundance on "
+			+ "the red marked exclusive gateway since the exclusive gateway "
+			+ "is not able to synchronize.";
 	
 	/**
 	 * The name of the path to failure attribute.

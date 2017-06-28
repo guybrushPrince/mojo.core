@@ -31,7 +31,7 @@ public class ViciousCycleAnnotation extends Annotation {
 	 * The failure description.
 	 */
 	public static final String DESCRIPTION = "There is a deadlock or abundance"
-			+ " caused by two nodes which are cyclic dependencies.";
+			+ " caused by two bpmn elements which have cyclic dependencies.";
 
 	/**
 	 * The constructor defines an vicious cycle annotation and hides the

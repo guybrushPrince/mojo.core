@@ -30,7 +30,8 @@ public class NoStartAnnotation extends Annotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "No start detectable. The graph contains a loop that supresses the detection.";
+	public static final String DESCRIPTION = "There is no start event. The "
+			+ "process contains a loop that supresses the detection.";
 
 	/**
 	 * The constructor defines a no start annotation and hides the
