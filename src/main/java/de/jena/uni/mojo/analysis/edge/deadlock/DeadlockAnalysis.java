@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 
-
 import de.jena.uni.mojo.analysis.Analysis;
 import de.jena.uni.mojo.analysis.edge.Edge;
 import de.jena.uni.mojo.analysis.edge.dominance.PostDominatorEdgeAnalysis;
@@ -94,8 +93,8 @@ public class DeadlockAnalysis extends Analysis {
 	 * @param edgeAnalysis
 	 *            The post dominance edge analysis.
 	 */
-	public DeadlockAnalysis(WorkflowGraph graph, WGNode[] map,
-			AnalysisInformation reporter, PostDominatorEdgeAnalysis edgeAnalysis) {
+	public DeadlockAnalysis(WorkflowGraph graph, WGNode[] map, AnalysisInformation reporter,
+			PostDominatorEdgeAnalysis edgeAnalysis) {
 		super(graph, map, reporter);
 		this.edgeAnalysis = edgeAnalysis;
 		this.edges = edgeAnalysis.edges;
@@ -123,13 +122,12 @@ public class DeadlockAnalysis extends Analysis {
 		Edge startEdge = edges.get(outgoing[start.getId()].nextSetBit(0));
 		// Get its information
 		BitSet information = startEdge.deadlockInformation;
-		
-		for (int i = information.nextSetBit(0); i >= 0; i = information
-				.nextSetBit(i + 1)) {
+
+		for (int i = information.nextSetBit(0); i >= 0; i = information.nextSetBit(i + 1)) {
 
 			// An edge is visited
 			edgesVisited++;
-			
+
 			reporter.startIgnoreTimeMeasurement(graph, this.getClass().getName());
 
 			// There is a "normal" failure without a path from the
@@ -161,8 +159,7 @@ public class DeadlockAnalysis extends Analysis {
 			Edge outEdge = edges.get(outgoing[join.getId()].nextSetBit(0));
 
 			BitSet income = incoming[join.getId()];
-			for (int in = income.nextSetBit(0); in >= 0; in = income
-					.nextSetBit(in + 1)) {
+			for (int in = income.nextSetBit(0); in >= 0; in = income.nextSetBit(in + 1)) {
 				// An edge is visited
 				edgesVisited++;
 
@@ -171,18 +168,15 @@ public class DeadlockAnalysis extends Analysis {
 					// There is a failure, so we have to add a failure
 					// annotation
 					// to the workflow
-					DeadlockCycleAnnotation annotation = new DeadlockCycleAnnotation(
-							this);
+					DeadlockCycleAnnotation annotation = new DeadlockCycleAnnotation(this);
 
 					// Perform a failure diagnostic
-					failureDiagnostic(annotation, join, outEdge, outEdge,
-							outEdge.deadlockInformation);
+					failureDiagnostic(annotation, join, outEdge, outEdge, outEdge.deadlockInformation);
 
 					outEdge.deadlockInformation.andNot(income);
 
 					errors.add(annotation);
-					reporter.add(graph,
-							AnalysisInformation.NUMBER_DEADLOCKS_LOOP, 1);
+					reporter.add(graph, AnalysisInformation.NUMBER_DEADLOCKS_LOOP, 1);
 					reporter.endIgnoreTimeMeasurement(graph, this.getClass().getName());
 				}
 			}
@@ -194,6 +188,9 @@ public class DeadlockAnalysis extends Analysis {
 		return errors;
 	}
 
+	/**
+	 * Determine the approximated activation edges.
+	 */
 	private void determineApprExecEdges() {
 		// Build a bit set of all outgoing edges
 		// of all split nodes
@@ -226,7 +223,7 @@ public class DeadlockAnalysis extends Analysis {
 			// For each incoming edge of the join, we determine
 			// its appr. exec. edges.
 			for (int i = in.nextSetBit(0); i >= 0; i = in.nextSetBit(i + 1)) {
-				
+
 				// Create a copy of the bit set of edges
 				BitSet allowed = (BitSet) edges.clone();
 				BitSet splitCopy = (BitSet) outSplits.clone();
@@ -240,7 +237,7 @@ public class DeadlockAnalysis extends Analysis {
 					BitSet visited = new BitSet(allowed.size());
 					// Perform a inverse depth first search
 					inverseDepthFirstSearch(i, out, allowed, visited);
-					
+
 					// Determine removed edges
 					allowed.andNot(visited);
 					// Determine all edges which went out of a split
@@ -250,8 +247,7 @@ public class DeadlockAnalysis extends Analysis {
 					// An edge is visited
 					edgesVisited++;
 
-					for (int s = allowed.nextSetBit(0); s >= 0; s = allowed
-							.nextSetBit(s + 1)) {
+					for (int s = allowed.nextSetBit(0); s >= 0; s = allowed.nextSetBit(s + 1)) {
 
 						// An edge is visited
 						edgesVisited++;
@@ -300,8 +296,7 @@ public class DeadlockAnalysis extends Analysis {
 	 * @param visited
 	 *            The already visited edges.
 	 */
-	private void inverseDepthFirstSearch(int current, int last, BitSet allowed,
-			BitSet visited) {
+	private void inverseDepthFirstSearch(int current, int last, BitSet allowed, BitSet visited) {
 		// The current edge is visited
 		visited.set(current);
 
@@ -324,8 +319,7 @@ public class DeadlockAnalysis extends Analysis {
 			predCopy.andNot(visited);
 
 			// Visited the rest predecessors
-			for (int p = predCopy.nextSetBit(0); p >= 0; p = predCopy
-					.nextSetBit(p + 1)) {
+			for (int p = predCopy.nextSetBit(0); p >= 0; p = predCopy.nextSetBit(p + 1)) {
 				inverseDepthFirstSearch(p, last, allowed, visited);
 			}
 		}
@@ -344,8 +338,7 @@ public class DeadlockAnalysis extends Analysis {
 	 * @param splits
 	 *            The split and or-splits reached.
 	 */
-	private void getPathsToJoin(int current, int incoming, BitSet visited,
-			List<WGNode> splits) {
+	private void getPathsToJoin(int current, int incoming, BitSet visited, List<WGNode> splits) {
 
 		// An edge is visited
 		edgesVisited++;
@@ -361,14 +354,12 @@ public class DeadlockAnalysis extends Analysis {
 			// Remove already visited edges
 			succCopy.andNot(visited);
 
-			for (int s = succCopy.nextSetBit(0); s >= 0; s = succCopy
-					.nextSetBit(s + 1)) {
+			for (int s = succCopy.nextSetBit(0); s >= 0; s = succCopy.nextSetBit(s + 1)) {
 				// Get the successor edge
 				Edge succ = edges.get(s);
 
 				// Add the source if it is a (or-)split
-				if (succ.src.getType() == Type.SPLIT
-						|| succ.src.getType() == Type.OR_FORK) {
+				if (succ.src.getType() == Type.SPLIT || succ.src.getType() == Type.OR_FORK) {
 
 					splits.add(succ.src);
 				}
@@ -386,15 +377,21 @@ public class DeadlockAnalysis extends Analysis {
 	}
 
 	/**
+	 * Performs a short failure diagnostic.
 	 * 
 	 * @param annotation
+	 *            The failure annotation.
 	 * @param join
+	 *            The join node with a potential deadlock.
 	 * @param from
+	 *            The incoming edge of the dominator (or the start edge)
 	 * @param out
+	 *            The outgoing edge of the join node.
 	 * @param information
+	 *            Information of visible edges.
 	 */
-	private void failureDiagnostic(DeadlockAnnotation annotation, WGNode join,
-			Edge from, Edge out, BitSet information) {
+	private void failureDiagnostic(DeadlockAnnotation annotation, WGNode join, Edge from, Edge out,
+			BitSet information) {
 		// Determine for each reached incoming edge of this
 		// join node a path to the join.
 		BitSet incomeJoin = (BitSet) incoming[join.getId()].clone();
@@ -402,8 +399,7 @@ public class DeadlockAnalysis extends Analysis {
 		// Regard only the edges which arrive at the start edge.
 		incomeJoin.and(information);
 		// For each incoming edge calculate the paths
-		for (int inEdge = incomeJoin.nextSetBit(0); inEdge >= 0; inEdge = incomeJoin
-				.nextSetBit(inEdge + 1)) {
+		for (int inEdge = incomeJoin.nextSetBit(0); inEdge >= 0; inEdge = incomeJoin.nextSetBit(inEdge + 1)) {
 
 			// Create a new path/visited set
 			BitSet vis = new BitSet(incomeJoin.size());
@@ -488,8 +484,7 @@ public class DeadlockAnalysis extends Analysis {
 
 			// Set the kill set of each appr. execution edge of the
 			// outgoing edge of the current join node.
-			for (int e = out.isApproxExecutedBy.nextSetBit(0); e >= 0; e = out.isApproxExecutedBy
-					.nextSetBit(e + 1)) {
+			for (int e = out.isApproxExecutedBy.nextSetBit(0); e >= 0; e = out.isApproxExecutedBy.nextSetBit(e + 1)) {
 
 				// An edge is visited
 				edgesVisited++;
@@ -514,8 +509,7 @@ public class DeadlockAnalysis extends Analysis {
 			BitSet outgoing = this.outgoing[current.tgt.getId()];
 
 			// Build IN information
-			for (int j = outgoing.nextSetBit(0); j >= 0; j = outgoing
-					.nextSetBit(j + 1)) {
+			for (int j = outgoing.nextSetBit(0); j >= 0; j = outgoing.nextSetBit(j + 1)) {
 				// An edge is visited
 				edgesVisited++;
 
@@ -534,8 +528,7 @@ public class DeadlockAnalysis extends Analysis {
 				// Add outgoing edges
 				// Get the outgoing edges
 				BitSet incoming = this.incoming[current.src.getId()];
-				for (int j = incoming.nextSetBit(0); j >= 0; j = incoming
-						.nextSetBit(j + 1)) {
+				for (int j = incoming.nextSetBit(0); j >= 0; j = incoming.nextSetBit(j + 1)) {
 					// An edge is visited
 					edgesVisited++;
 

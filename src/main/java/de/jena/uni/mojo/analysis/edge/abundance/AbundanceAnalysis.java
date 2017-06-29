@@ -74,16 +74,6 @@ public class AbundanceAnalysis extends Analysis {
 	public final BitSet[] outgoing;
 
 	/**
-	 * A counter that counts the definitions.
-	 */
-	//private int definitionsCounter = 0;
-
-	/**
-	 * A list of created definitions.
-	 */
-	//private final ArrayList<Definition> definitions = new ArrayList<Definition>();
-
-	/**
 	 * A list of found errors.
 	 */
 	private final LinkedList<Annotation> errors = new LinkedList<Annotation>();
@@ -266,6 +256,9 @@ public class AbundanceAnalysis extends Analysis {
 		return errors;
 	}
 	
+	/**
+	 * Determine the necessary edges which should be visited for each fork.
+	 */
 	private void determineBonds() {
 		List<WGNode> forks = new ArrayList<WGNode>(graph.getForkList());
 		forks.addAll(graph.getOrForkList());
