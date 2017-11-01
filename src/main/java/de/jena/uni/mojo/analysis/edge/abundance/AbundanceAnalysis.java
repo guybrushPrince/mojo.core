@@ -125,7 +125,7 @@ public class AbundanceAnalysis extends Analysis {
 		this.incoming = edgeAnalysis.incoming;
 		this.outgoing = edgeAnalysis.outgoing;
 		this.hasDefinitions = new BitSet(edges.size());
-		this.meetingPoints = new BitSet[graph.getNodeList().size()];
+		this.meetingPoints = new BitSet[map.length];
 		// Initialize the sets for the meeting points
 		for (WGNode fork: graph.getForkList()) {
 			this.meetingPoints[fork.getId()] = new BitSet(edges.size());

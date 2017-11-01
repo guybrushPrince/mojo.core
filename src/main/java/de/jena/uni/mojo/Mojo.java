@@ -376,15 +376,20 @@ public class Mojo {
 
 			// Get the right source plugin
 			SourcePlugin plugin = Mojo.sourcePlugins.get(FilenameUtils.getExtension(file.getAbsolutePath()));
-
-			try {
-				// Determine the right reader
-				Reader reader = plugin.getReader(file.getName(), file, analysisInformation, Charset.defaultCharset());
-				// Read in the files
-				list.addAll(reader.compute());
-
-				analyzeWorkflowGraphs(file, reader.getResult(), plugin.getIdInterpreter(), analysisInformation, list);
-			} catch (IOException e) {
+			
+			if (plugin == null) {
+				System.err.println("Cannot handle files with extension '" + 
+						FilenameUtils.getExtension(file.getAbsolutePath()) + "'");
+			} else {
+				
+				try {
+					// Determine the right reader
+					Reader reader = plugin.getReader(file.getName(), file, analysisInformation, Charset.defaultCharset());
+					// Read in the files
+					list.addAll(reader.compute());
+	
+					analyzeWorkflowGraphs(file, reader.getResult(), plugin.getIdInterpreter(), analysisInformation, list);
+				} catch (IOException e) { }
 			}
 		}
 
@@ -413,7 +418,7 @@ public class Mojo {
 
 			// Print the file that will be verified.
 			System.out.printf("%n%s", file);
-
+			
 			// For each workflow graph within the process
 			for (WorkflowGraph g : graphs) {
 
