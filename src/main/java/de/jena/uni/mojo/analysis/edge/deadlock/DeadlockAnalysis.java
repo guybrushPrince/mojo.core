@@ -24,14 +24,15 @@ import java.util.List;
 
 import de.jena.uni.mojo.analysis.Analysis;
 import de.jena.uni.mojo.analysis.edge.Edge;
+import de.jena.uni.mojo.analysis.edge.ExecutionEdgeAnalysis;
 import de.jena.uni.mojo.analysis.edge.dominance.PostDominatorEdgeAnalysis;
 import de.jena.uni.mojo.analysis.information.AnalysisInformation;
 import de.jena.uni.mojo.error.Annotation;
 import de.jena.uni.mojo.error.DeadlockAnnotation;
 import de.jena.uni.mojo.error.DeadlockCycleAnnotation;
 import de.jena.uni.mojo.model.WGNode;
-import de.jena.uni.mojo.model.WorkflowGraph;
 import de.jena.uni.mojo.model.WGNode.Type;
+import de.jena.uni.mojo.model.WorkflowGraph;
 
 /**
  * This analysis finds the causes of potential deadlocks in a worklow graph.
@@ -92,9 +93,11 @@ public class DeadlockAnalysis extends Analysis {
 	 *            The analysis information.
 	 * @param edgeAnalysis
 	 *            The post dominance edge analysis.
+	 * @param executionEdgeAnalysis
+	 *            The execution edge analysis.
 	 */
 	public DeadlockAnalysis(WorkflowGraph graph, WGNode[] map, AnalysisInformation reporter,
-			PostDominatorEdgeAnalysis edgeAnalysis) {
+			PostDominatorEdgeAnalysis edgeAnalysis, ExecutionEdgeAnalysis executionEdgeAnalysis) {
 		super(graph, map, reporter);
 		this.edgeAnalysis = edgeAnalysis;
 		this.edges = edgeAnalysis.edges;
@@ -104,9 +107,9 @@ public class DeadlockAnalysis extends Analysis {
 
 	@Override
 	protected List<Annotation> analyze() {
-		// Determine execution edge approximation
-		determineApprExecEdges();
-
+		// The execution edges were already detected by
+		// the execution edge analysis
+		
 		// Perform the dataflow analysis
 		dataflowAnalysis();
 
@@ -186,102 +189,6 @@ public class DeadlockAnalysis extends Analysis {
 		reporter.put(graph, AnalysisInformation.NUMBER_DEADLOCKS, errors.size());
 		reporter.put(graph, DEADLOCK_NUMBER_VISITED_EDGES, edgesVisited);
 		return errors;
-	}
-
-	/**
-	 * Determine the approximated activation edges.
-	 */
-	private void determineApprExecEdges() {
-		// Build a bit set of all outgoing edges
-		// of all split nodes
-		BitSet outSplits = new BitSet(this.edges.size());
-		for (WGNode split : graph.getSplitList()) {
-			outSplits.or(outgoing[split.getId()]);
-		}
-		for (WGNode orsplit : graph.getOrForkList()) {
-			outSplits.or(outgoing[orsplit.getId()]);
-		}
-
-		// Build an edge bit set
-		BitSet edges = new BitSet(this.edges.size());
-		edges.set(0, this.edges.size());
-
-		// We determine the appr. exec. edges for each
-		// join node
-		for (WGNode join : graph.getJoinList()) {
-			// Get the join's incoming edges
-			BitSet in = incoming[join.getId()];
-
-			// Get the join's outgoing edge
-			int out = outgoing[join.getId()].nextSetBit(0);
-
-			// Set the outgoing's edge appr. exec.
-			// edges to the whole set of edges.
-			Edge outEdge = this.edges.get(out);
-			outEdge.isApproxExecutedBy.or(edges);
-
-			// For each incoming edge of the join, we determine
-			// its appr. exec. edges.
-			for (int i = in.nextSetBit(0); i >= 0; i = in.nextSetBit(i + 1)) {
-
-				// Create a copy of the bit set of edges
-				BitSet allowed = (BitSet) edges.clone();
-				BitSet splitCopy = (BitSet) outSplits.clone();
-
-				boolean stable;
-				do {
-					// Set it to stable
-					stable = true;
-
-					// Create a bit set for visited edges
-					BitSet visited = new BitSet(allowed.size());
-					// Perform a inverse depth first search
-					inverseDepthFirstSearch(i, out, allowed, visited);
-
-					// Determine removed edges
-					allowed.andNot(visited);
-					// Determine all edges which went out of a split
-					// and were removed. Its split can be removed.
-					allowed.and(splitCopy);
-
-					// An edge is visited
-					edgesVisited++;
-
-					for (int s = allowed.nextSetBit(0); s >= 0; s = allowed.nextSetBit(s + 1)) {
-
-						// An edge is visited
-						edgesVisited++;
-
-						// Determine the split
-						WGNode split = this.edges.get(s).src;
-
-						// We can remove its incoming edge.
-						visited.andNot(incoming[split.getId()]);
-
-						// We do not have to visited this split twice, so
-						// we remove its outgoing edges from both, the removed
-						// edges and the outgoing split edges set
-						splitCopy.andNot(outgoing[split.getId()]);
-						allowed.andNot(outgoing[split.getId()]);
-
-						stable = false;
-					}
-
-					allowed = visited;
-
-				} while (!stable);
-
-				// The allowed nodes are those, who are appr. exec. edges
-				// of the current incoming edge.
-				Edge curIn = this.edges.get(i);
-				curIn.isApproxExecutedBy.or(allowed);
-
-				outEdge = this.edges.get(out);
-				outEdge.isApproxExecutedBy.and(allowed);
-
-			}
-
-		}
 	}
 
 	/**

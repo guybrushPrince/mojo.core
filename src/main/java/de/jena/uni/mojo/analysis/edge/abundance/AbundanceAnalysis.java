@@ -25,6 +25,7 @@ import java.util.List;
 
 import de.jena.uni.mojo.analysis.Analysis;
 import de.jena.uni.mojo.analysis.edge.Edge;
+import de.jena.uni.mojo.analysis.edge.ExecutionEdgeAnalysis;
 import de.jena.uni.mojo.analysis.edge.StrongComponentsAnalysis;
 import de.jena.uni.mojo.analysis.edge.dominance.DominatorEdgeAnalysis;
 import de.jena.uni.mojo.analysis.information.AnalysisInformation;
@@ -92,16 +93,6 @@ public class AbundanceAnalysis extends Analysis {
 	 * The meeting points for each fork
 	 */
 	private final BitSet[] meetingPoints;
-	
-	/**
-	 * The components (parts of the graph) which build cycles
-	 */
-	private final ArrayList<BitSet> components;
-	
-	/**
-	 * A bitset containing each outgoing edge of all join nodes. 
-	 */
-	private BitSet outgoingJoins;
 
 	/**
 	 * The constructor of the abundance analysis.
@@ -116,10 +107,16 @@ public class AbundanceAnalysis extends Analysis {
 	 *            The dominator edge analysis.
 	 * @param strongAnalysis
 	 * 			  The strong connected components analysis.
+	 * @param executionEdgeAnalysis
+	 *            The execution edge analysis.
 	 */
-	public AbundanceAnalysis(WorkflowGraph graph, WGNode[] map,
-			AnalysisInformation reporter, DominatorEdgeAnalysis edgeAnalysis,
-			StrongComponentsAnalysis strongAnalysis) {
+	public AbundanceAnalysis(
+			WorkflowGraph graph, 
+			WGNode[] map,
+			AnalysisInformation reporter, 
+			DominatorEdgeAnalysis edgeAnalysis,
+			StrongComponentsAnalysis strongAnalysis, 
+			ExecutionEdgeAnalysis executionEdgeAnalysis) {
 		super(graph, map, reporter);
 		this.edges = edgeAnalysis.edges;
 		this.incoming = edgeAnalysis.incoming;
@@ -133,7 +130,6 @@ public class AbundanceAnalysis extends Analysis {
 		for (WGNode orfork: graph.getOrForkList()) {
 			this.meetingPoints[orfork.getId()] = new BitSet(edges.size());
 		}
-		this.components = strongAnalysis.getComponents();
 	}
 
 	@Override
@@ -152,10 +148,7 @@ public class AbundanceAnalysis extends Analysis {
 
 		// Step 2b: Determine the places for phi-functions
 		setPhiFunctions();
-		
-		// Step 2c: Determine the dependencies of the edges
-		determineExecDependencies();
-		
+				
 		// Step 3:
 		// Build the network graph
 		NetworkGraph network = new NetworkGraph(graph, map, this.reporter);
@@ -365,93 +358,6 @@ public class AbundanceAnalysis extends Analysis {
 		succ.and(allowed);
 		for (int s = succ.nextSetBit(0); s >= 0; s = succ.nextSetBit(s + 1)) {
 			depthFirstSearch(s, allowed, visited);
-		}
-	}
-	
-	/**
-	 * Determines the execution dependencies of each meeting point.
-	 */
-	private void determineExecDependencies() {
-		int numEdges = this.edges.size();
-		
-		// Build an all edges bit set
-		BitSet oldReachable = new BitSet(numEdges);
-		BitSet remaining = new BitSet(numEdges);
-		BitSet reachable = new BitSet(numEdges);
-		
-		// Determine a set of all outgoing edges
-		this.outgoingJoins = new BitSet(numEdges);
-		BitSet ogJoins = this.outgoingJoins;
-		BitSet joins = this.graph.getJoinSet();
-		for (int join = joins.nextSetBit(0); join >= 0; join = joins.nextSetBit(join + 1)) {
-			ogJoins.or(this.outgoing[join]);
-		}
-		
-		// Determine the execution dependencies for each edge.
-		List<WGNode> forks = new ArrayList<WGNode>(graph.getForkList());
-		forks.addAll(graph.getOrForkList());
-		for (WGNode fork: forks) {
-			BitSet meetingPoints = this.meetingPoints[fork.getId()];
-			int in = this.incoming[fork.getId()].nextSetBit(0);
-			Edge inEdge = edges.get(in);
-			for (int m = meetingPoints.nextSetBit(0); m >= 0; m = meetingPoints.nextSetBit(m + 1)) {
-				Edge cur = edges.get(m);
-				edgesVisited++;
-				
-				boolean ignore = true;
-				// If the current meeting point is in a cycle ...
-				if (cur.inCycle) {
-					BitSet comp = (BitSet) this.components.get(cur.component).clone();
-					comp.and(this.hasDefinitions);
-					// ... and it lies with at least one other meeting point within the cycle...
-					if (!comp.isEmpty()) {
-						// ... we cannot ignore it.
-						ignore = false;
-					}
-				}
-	
-				if (ignore) continue;
-				if (!this.hasDefinitions.get(cur.id)) continue;
-				
-				reachable.or(inEdge.bond);
-				reachable.clear(cur.id);
-				oldReachable.set(0, numEdges);
-				do {
-					oldReachable.and(reachable);
-					edgesVisited++;
-					
-					// Perform a modified depth first search on remaining edges
-					remaining.clear();
-					depthFirstSearch(in, reachable, remaining);
-					reachable.and(remaining);
-	
-					for (int join = joins.nextSetBit(0); join >= 0; join = joins.nextSetBit(join + 1)) {
-						edgesVisited++;
-						remaining.clear();
-						remaining.or(inEdge.bond);
-						remaining.and(this.incoming[join]);
-						int inEdges = remaining.cardinality();
-						
-						remaining.clear();
-						remaining.or(reachable);
-						remaining.and(this.incoming[join]);
-						if (remaining.cardinality() < inEdges) {
-							reachable.andNot(this.outgoing[join]);
-						}
-					}
-				} while (oldReachable.cardinality() > reachable.cardinality());
-						
-				// We have reached a stable point, i.e., no edges can be eliminated
-				// from the graph anymore.
-				// Determine the edges being dependent from the current edge. These
-				// all edges being not in the all set.
-				//remaining.set(0, numEdges);
-				remaining.or(inEdge.bond);
-				remaining.andNot(reachable);
-				remaining.and(this.outgoingJoins); // Only those of joins are welcome
-				remaining.and(this.meetingPoints[fork.getId()]);
-				cur.dependentFork.put(in, (BitSet) remaining.clone());
-			}
 		}
 	}
 }

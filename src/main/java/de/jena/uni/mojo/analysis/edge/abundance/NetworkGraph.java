@@ -126,6 +126,11 @@ public class NetworkGraph extends Analysis {
 	 * Mapping between virtual and original edges.
 	 */
 	private final HashMap<Integer, NetworkEdge> virtualEdgeOrigin = new HashMap<>();
+	
+	/**
+	 * Incoming edges sets for all join nodes.
+	 */
+	private final BitSet incomingJoinNodes;
 
 	/**
 	 * The constructor.
@@ -155,6 +160,7 @@ public class NetworkGraph extends Analysis {
 		int maxAdditionalNodes = nodeMap.length + max + 1;
 		this.incoming = new BitSet[maxAdditionalNodes];
 		this.outgoing = new BitSet[maxAdditionalNodes];
+		this.incomingJoinNodes = new BitSet(maxAdditionalNodes);
 
 		this.capacities = new BitSet(maxAdditionalEdges);
 		this.currentFlow = new BitSet(maxAdditionalEdges);
@@ -190,10 +196,6 @@ public class NetworkGraph extends Analysis {
 				}
 			}
 		}
-		/*System.out.println("Find for " + this.flowSource + " and " + this.flowSink + ": ");
-		for (BitSet path: lastResult) {
-			System.out.println("\t" + path);
-		}*/
 		return Collections.emptyList();
 	}
 
@@ -289,6 +291,8 @@ public class NetworkGraph extends Analysis {
 			if (this.outgoing[i] != null)
 				this.outgoing[i].clear();
 		}
+		
+		this.incomingJoinNodes.clear();
 
 		// Build incoming and outgoing sets
 		for (NetworkEdge edge : tmpEdges) {
@@ -314,6 +318,8 @@ public class NetworkGraph extends Analysis {
 
 			srcOut.set(edge.id);
 			tgtIn.set(edge.id);
+			
+			if (graph.getJoinSet().get(tgt)) this.incomingJoinNodes.set(edge.id);
 		}
 	}
 
@@ -350,15 +356,10 @@ public class NetworkGraph extends Analysis {
 		this.capacities.clear();
 		this.currentFlow.clear();
 
-		// Set the capacities not for the dependent outgoing edges of join
-		// nodes.
-		BitSet dependent = sync.dependentFork.get(inFork.id);
-		BitSet not;
-		if (dependent == null) {
-			not = new BitSet(edges.length);
-		} else {
-			not = (BitSet) dependent.clone();
-		}
+		// Set the capacities not for the outgoing edges of join
+		// nodes for which sync is execution edge.
+		BitSet not = (BitSet) sync.approxExecutes.clone();
+		not.and(incomingJoinNodes);		
 		not.clear(sync.id);
 		for (NetworkEdge edge : tmpEdges) {
 			visitedEdges++;
