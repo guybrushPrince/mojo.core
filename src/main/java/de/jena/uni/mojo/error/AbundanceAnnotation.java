@@ -41,8 +41,8 @@ public class AbundanceAnnotation extends Annotation {
 	 * The failure description.
 	 */
 	public static final String DESCRIPTION = "At least two control flows of "
-			+ "the orange marked parallel gateway can cause an abundance on "
-			+ "the red marked exclusive gateway since the exclusive gateway "
+			+ "the start marked parallel gateway can cause an abundance on "
+			+ "the end marked exclusive gateway since the exclusive gateway "
 			+ "is not able to synchronize.";
 	
 	/**
@@ -76,7 +76,7 @@ public class AbundanceAnnotation extends Annotation {
 	 *            The analysis which defines this annotation.
 	 */
 	protected AbundanceAnnotation(String description, Analysis analysis) {
-		super(EAlarmCategory.ERROR, DESCRIPTION, analysis);
+		super(EAlarmCategory.ERROR, description, analysis);
 	}
 
 	/**
@@ -112,7 +112,7 @@ public class AbundanceAnnotation extends Annotation {
 	public void printInformation(IdInterpreter interpreter) {
 		super.printInformation(interpreter);
 
-		System.out.printf("\t\t%-35s: %n", "Paths to the failure (WFG + Process)");
+		System.out.printf("\t\t%-35s: %n", "Paths to the fault (WFG + Process)");
 
 		int pathCounter = 0;
 		for (BitSet path : this.pathsToFailure) {
@@ -127,7 +127,7 @@ public class AbundanceAnnotation extends Annotation {
 			// Print the process nodes
 			System.out.printf("\t\t\t%-20s: %s%n",
 					"Path " + pathCounter + " (Process)",
-					this.extractAbstractPath(wfgEdges).toString());
+					interpreter.extractPath(this.extractAbstractPath(wfgEdges)));
 		}
 
 	}

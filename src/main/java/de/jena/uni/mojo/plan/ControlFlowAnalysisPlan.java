@@ -20,6 +20,7 @@ package de.jena.uni.mojo.plan;
 
 
 import de.jena.uni.mojo.analysis.edge.EdgeAnalysis;
+import de.jena.uni.mojo.analysis.edge.ExecutionEdgeAnalysis;
 import de.jena.uni.mojo.analysis.edge.StrongComponentsAnalysis;
 import de.jena.uni.mojo.analysis.edge.abundance.AbundanceAnalysis;
 import de.jena.uni.mojo.analysis.edge.deadlock.DeadlockAnalysis;
@@ -101,23 +102,46 @@ public class ControlFlowAnalysisPlan extends Plan {
 					graph, map, reporter);
 			errorList.addAll(waitingAreaAnalysis.compute());
 		}
+		
+		//
+		// 4. Perform the execution edge analysis analysis
+		//
+		ExecutionEdgeAnalysis executionEdgeAnalysis = new ExecutionEdgeAnalysis(
+				graph,
+				map,
+				reporter,
+				postDomEdgeAnalysis
+		);
+		executionEdgeAnalysis.fork();
+		executionEdgeAnalysis.join();
 
 		//
-		// 4. Perform the deadlock analysis
+		// 5. Perform the deadlock analysis
 		//
-		DeadlockAnalysis deadlockAnalysis = new DeadlockAnalysis(graph, map,
-				reporter, postDomEdgeAnalysis);
+		DeadlockAnalysis deadlockAnalysis = new DeadlockAnalysis(
+				graph, 
+				map,
+				reporter, 
+				postDomEdgeAnalysis, 
+				executionEdgeAnalysis
+		);
 		deadlockAnalysis.fork();
 
 		//
-		// 5. Determine abundances
+		// 6. Determine abundances
 		//
-		AbundanceAnalysis abuAnalysis = new AbundanceAnalysis(graph, map,
-				reporter, domEdgeAnalysis, strongComponentsAnalysis);
+		AbundanceAnalysis abuAnalysis = new AbundanceAnalysis(
+				graph, 
+				map,
+				reporter, 
+				domEdgeAnalysis, 
+				strongComponentsAnalysis,
+				executionEdgeAnalysis
+		);
 		abuAnalysis.fork();
 
 		//
-		// 6. Perform the OR join deadlock analysis (already done with
+		// 7. Perform the OR join deadlock analysis (already done with
 		// abundance)
 		//
 		errorList.addAll(deadlockAnalysis.join());

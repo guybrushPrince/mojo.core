@@ -43,9 +43,9 @@ public class DeadlockAnnotation extends Annotation {
 	 * The failure description.
 	 */
 	public static final String DESCRIPTION = "The execution is not guaranteed on "
-			+ "a path from the orange marked node to the convergent parallel "
-			+ "gateway (red). It is probable that the marked exclusive gateways "
-			+ "cause the error.";
+			+ "a path from the start marked node to the convergent parallel "
+			+ "gateway (end marked). It is probable that the marked and involved "
+			+ "exclusive gateways cause the fault.";
 
 	/**
 	 * The name of the path to failure attribute.
@@ -88,7 +88,7 @@ public class DeadlockAnnotation extends Annotation {
 	 *            The analysis which defines this annotation.
 	 */
 	protected DeadlockAnnotation(String description, Analysis analysis) {
-		super(EAlarmCategory.ERROR, DESCRIPTION, analysis);
+		super(EAlarmCategory.ERROR, description, analysis);
 	}
 
 	/**
@@ -155,11 +155,11 @@ public class DeadlockAnnotation extends Annotation {
 	public void printInformation(IdInterpreter interpreter) {
 		super.printInformation(interpreter);
 
-		System.out.printf("\t\t%-35s: %s%n", "Failure nodes (WFG)", failureNodes.toString());
+		System.out.printf("\t\t%-35s: %s%n", "Fault nodes (WFG)", failureNodes.toString());
 
-		System.out.printf("\t\t%-35s: %s%n", "Failure nodes (Process)", getInterpretedFailureNodes().toString());
+		System.out.printf("\t\t%-35s: %s%n", "fault nodes (Process)", this.getIdString(getInterpretedFailureNodes(), interpreter));
 
-		System.out.printf("\t\t%-35s: %n", "Paths to the failure (WFG + Process)");
+		System.out.printf("\t\t%-35s: %n", "Paths to the fault (WFG + Process)");
 
 		int pathCounter = 0;
 		for (BitSet path : this.pathsToFailure) {
@@ -172,7 +172,7 @@ public class DeadlockAnnotation extends Annotation {
 
 			// Print the process nodes
 			System.out.printf("\t\t\t%-20s: %s%n", "Path " + pathCounter + " (Process)",
-					this.extractAbstractPath(wfgEdges).toString());
+					interpreter.extractPath(this.extractAbstractPath(wfgEdges)));
 		}
 
 	}
