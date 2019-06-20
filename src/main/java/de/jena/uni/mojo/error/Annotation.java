@@ -224,21 +224,21 @@ public abstract class Annotation {
 	 * @return The information about the annotation.
 	 */
 	public void printInformation(IdInterpreter interpreter) {
-		System.out.printf("\t%-20s%n", category.name() + ":");
+		System.out.printf("%n\t%-20s%n", category.name() + ":");
 		System.out.printf("\t\t%s%n", "Description: " + description);
-		System.out.printf("\t\t%-35s: %s%n", "Opening nodes (WFG)",
+		System.out.printf("\t\t%-35s: %s%n", "Nodes, where fault starts (WFG)",
 				openingNodes.toString());
-		System.out.printf("\t\t%-35s: %s%n", "Annotated nodes (WFG)",
+		System.out.printf("\t\t%-35s: %s%n", "Nodes, where fault ends (WFG)",
 				printableNodes.toString());
-		System.out.printf("\t\t%-35s: %s%n", "Involved nodes (WFG)",
+		System.out.printf("\t\t%-35s: %s%n", "Nodes, which are involved (WFG)",
 				involvedNodes.toString());
 
-		System.out.printf("\t\t%-35s: %s%n", "Opening nodes (Process)",
-				getInterpretedOpeningNodes().toString());
-		System.out.printf("\t\t%-35s: %s%n", "Annotated nodes (Process)",
-				getInterpretedPrintableNodes().toString());
-		System.out.printf("\t\t%-35s: %s%n", "Involved nodes (Process)",
-				getInterpretedInvolvedNodes().toString());
+		System.out.printf("\t\t%-35s: %s%n", "Nodes, where fault starts (Process)",
+				getIdString(getInterpretedOpeningNodes(), interpreter));
+		System.out.printf("\t\t%-35s: %s%n", "Nodes, where fault ends (Process)",
+				getIdString(getInterpretedPrintableNodes(), interpreter));
+		System.out.printf("\t\t%-35s: %s%n", "Nodes, which are involved (Process)",
+				getIdString(getInterpretedInvolvedNodes(), interpreter));
 
 	}
 

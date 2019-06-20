@@ -106,7 +106,7 @@ public class WaitingAreaAnnotation extends Annotation {
 
 		// Print the process nodes
 		System.out.printf("\t\t%-35s: %s%n", "Waiting area (Process)",
-				this.extractAbstractPath(wfgEdges).toString());
+				interpreter.extractPath(this.extractAbstractPath(wfgEdges)));
 
 	}
 

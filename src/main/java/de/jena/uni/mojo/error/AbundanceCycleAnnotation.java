@@ -30,9 +30,9 @@ public class AbundanceCycleAnnotation extends AbundanceAnnotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "The orange marked parallel "
-			+ "gateway may produce an arbitray set of controlflows since "
-			+ "at least two of its controlflows are not synchronized "
+	public static final String DESCRIPTION = "The start marked parallel "
+			+ "gateway may produce an arbitray set of control flows since "
+			+ "at least two of its control flows are not synchronized "
 			+ "before reaching the gateway again."; 
 
 	/**

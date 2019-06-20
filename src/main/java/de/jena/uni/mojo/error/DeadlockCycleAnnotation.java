@@ -30,7 +30,7 @@ public class DeadlockCycleAnnotation extends DeadlockAnnotation {
 	/**
 	 * The failure description.
 	 */
-	public static final String DESCRIPTION = "The marked parallel gateway (red) "
+	public static final String DESCRIPTION = "The start marked parallel gateway "
 			+ "can only be executed if and only if it was already executed.";
 
 	/**
