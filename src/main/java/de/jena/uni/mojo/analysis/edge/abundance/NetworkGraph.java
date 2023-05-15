@@ -249,7 +249,6 @@ public class NetworkGraph extends Analysis {
 			NetworkEdge out = edges[o];
 			// Create a copy
 			NetworkEdge cout = new NetworkEdge(o, mNode, out.tgt);
-			// cout.origin = out;
 			this.virtualEdgeOrigin.put(cout.id, out);
 			// Replace
 			tmpEdges[o] = cout;
@@ -260,11 +259,9 @@ public class NetworkGraph extends Analysis {
 			//
 			// Create two new edges
 			NetworkEdge oldForkMerge = new NetworkEdge(edgeCounter, nFork, mNode);
-			// oldForkMerge.origin = out;
 			this.virtualEdgeOrigin.put(oldForkMerge.id, out);
 			tmpEdges[edgeCounter++] = oldForkMerge;
 			NetworkEdge newForkMerge = new NetworkEdge(edgeCounter, cFork, mNode);
-			// newForkMerge.origin = out;
 			this.virtualEdgeOrigin.put(newForkMerge.id, out);
 			tmpEdges[edgeCounter++] = newForkMerge;
 		}
@@ -281,7 +278,6 @@ public class NetworkGraph extends Analysis {
 		NetworkEdge cinEdge = new NetworkEdge(inEdge.id, inEdge.src, cFork);
 		this.virtualEdgeOrigin.put(cinEdge.id, inEdge);
 		// Replace
-		// tmpEdges.add(cinEdge);
 		tmpEdges[inEdge.id] = cinEdge;
 		replaced.set(inEdge.id);
 

@@ -94,6 +94,8 @@ public class ControlFlowAnalysisPlan extends Plan {
 		postDomEdgeAnalysis.join();
 		strongComponentsAnalysis.join();
 
+
+
 		//
 		// 3. Determine the waiting areas
 		//
@@ -104,7 +106,7 @@ public class ControlFlowAnalysisPlan extends Plan {
 		}
 		
 		//
-		// 4. Perform the execution edge analysis analysis
+		// 4. Perform the execution edge analysis
 		//
 		ExecutionEdgeAnalysis executionEdgeAnalysis = new ExecutionEdgeAnalysis(
 				graph,
@@ -123,7 +125,8 @@ public class ControlFlowAnalysisPlan extends Plan {
 				map,
 				reporter, 
 				postDomEdgeAnalysis, 
-				executionEdgeAnalysis
+				executionEdgeAnalysis,
+				strongComponentsAnalysis.isCyclic()
 		);
 		deadlockAnalysis.fork();
 

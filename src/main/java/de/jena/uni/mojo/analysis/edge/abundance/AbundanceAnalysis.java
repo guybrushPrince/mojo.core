@@ -58,6 +58,11 @@ public class AbundanceAnalysis extends Analysis {
 	public final static String ABUNDANCE_NUMBER_VISITED_EDGES = "ABUNDANCE_NUMBER_VISITED_EDGES";
 
 	/**
+	 * Whether the workflow graph is cyclic.
+	 */
+	private final boolean cyclic;
+
+	/**
 	 * A list of all edges within the workflow graph.
 	 */
 	public final List<Edge> edges;
@@ -130,6 +135,7 @@ public class AbundanceAnalysis extends Analysis {
 		for (WGNode orfork: graph.getOrForkList()) {
 			this.meetingPoints[orfork.getId()] = new BitSet(edges.size());
 		}
+		this.cyclic = strongAnalysis.isCyclic();
 	}
 
 	@Override
@@ -153,26 +159,37 @@ public class AbundanceAnalysis extends Analysis {
 		// Build the network graph
 		NetworkGraph network = new NetworkGraph(graph, map, this.reporter);
 		// For each fork initialize it
-		List<WGNode> forks = new ArrayList<WGNode>(graph.getForkList());
+		final List<WGNode> forks = new ArrayList<WGNode>(graph.getForkList());
 		forks.addAll(graph.getOrForkList());
 		BitSet checked = new BitSet(edges.size());
-		for (WGNode fork: graph.getForkList()) {
+		for (WGNode fork: forks) {
+
+			edgesVisited++;
+
 			boolean isTransformed = false;
 			// Clear the already checked set
 			checked.clear();
 			BitSet meetPoints = this.meetingPoints[fork.getId()];
+			meetPoints.and(hasDefinitions); // TODO: Is this correct?
 			for (int m = meetPoints.nextSetBit(0); m >= 0; m = meetPoints.nextSetBit(m + 1)) {
+
+				edgesVisited++;
+
 				Edge meetingPoint = edges.get(m);
 				if (meetingPoint.src.getType() == Type.JOIN ||
 						meetingPoint.src.getType() == Type.OR_JOIN ||
 						checked.get(meetingPoint.id)) continue;
-				
+
 				Edge in = edges.get(incoming[fork.getId()].nextSetBit(0));
-				
+
 				// We do not have to visit meeting points which are an outgoing edge
 				// of a fork if the fork is not within a cycle.
 				if (meetingPoint.src.getId() == fork.getId() && !in.bond.get(in.id)) continue;
-				
+
+				// If it is the virtual meeting point on the outgoing edge of the fork,
+				// then it is not a meeting point in an acyclic workflow graph.
+				if (!cyclic && meetingPoint.src.getType() != Type.MERGE) continue;
+
 				// Transform the network graph if needed.
 				if (!isTransformed) {
 					network.transformFor(fork);
@@ -183,7 +200,6 @@ public class AbundanceAnalysis extends Analysis {
 				// Determine the max flow
 				errors.addAll(network.compute());
 				List<BitSet> paths = network.getLastResult();
-				
 				checked.set(meetingPoint.id);
 				
 				if (paths.size() <= 1) {
@@ -238,14 +254,7 @@ public class AbundanceAnalysis extends Analysis {
 		reporter.put(graph, AnalysisInformation.NUMBER_LACK_OF_SYNCHRONIZATION,
 				errors.size());
 		reporter.put(graph, ABUNDANCE_NUMBER_VISITED_EDGES, edgesVisited);
-		
-		/*int sum = 0;
-		for (BitSet mp: this.meetingPoints) {
-			if (mp != null) sum += mp.cardinality();
-		}
-		
-		reporter.put(graph, "SUM_MEETING_POINTS", sum);*/
-		
+
 		return errors;
 	}
 	
@@ -299,7 +308,7 @@ public class AbundanceAnalysis extends Analysis {
 				if (n.src.getId() == fork.getId()) {
 					// ... and the fork is within a cycle ...
 					if (in.bond.get(in.id)) {
-						// ... then it could be important meeting point
+						// ... then it could be an important meeting point
 						this.meetingPoints[fork.getId()].set(n.id);
 						this.hasDefinitions.set(n.id);
 					}
@@ -320,7 +329,6 @@ public class AbundanceAnalysis extends Analysis {
 					Edge syncEdge = edges.get(s);
 					if (!in.syncEdges.get(syncEdge.id)) {
 						in.syncEdges.set(syncEdge.id);
-
 
 						meetingPoints[fork.getId()].set(syncEdge.id);
 						if (syncEdge.src.getType() != Type.JOIN && 

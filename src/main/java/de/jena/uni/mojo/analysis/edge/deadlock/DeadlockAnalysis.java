@@ -61,6 +61,11 @@ public class DeadlockAnalysis extends Analysis {
 	private final PostDominatorEdgeAnalysis edgeAnalysis;
 
 	/**
+	 * Is the workflow graph cyclic?
+	 */
+	private final boolean cyclic;
+
+	/**
 	 * A list of all edges within the workflow graph.
 	 */
 	public final List<Edge> edges;
@@ -98,11 +103,32 @@ public class DeadlockAnalysis extends Analysis {
 	 */
 	public DeadlockAnalysis(WorkflowGraph graph, WGNode[] map, AnalysisInformation reporter,
 			PostDominatorEdgeAnalysis edgeAnalysis, ExecutionEdgeAnalysis executionEdgeAnalysis) {
+		this(graph, map, reporter, edgeAnalysis, executionEdgeAnalysis, true);
+	}
+
+	/**
+	 * The constructor.
+	 *
+	 * @param graph
+	 *            The workflow graph.
+	 * @param map
+	 *            The node array map.
+	 * @param reporter
+	 *            The analysis information.
+	 * @param edgeAnalysis
+	 *            The post dominance edge analysis.
+	 * @param executionEdgeAnalysis
+	 *            The execution edge analysis.
+	 */
+	public DeadlockAnalysis(WorkflowGraph graph, WGNode[] map, AnalysisInformation reporter,
+							PostDominatorEdgeAnalysis edgeAnalysis, ExecutionEdgeAnalysis executionEdgeAnalysis,
+							boolean cyclic) {
 		super(graph, map, reporter);
 		this.edgeAnalysis = edgeAnalysis;
 		this.edges = edgeAnalysis.edges;
 		this.incoming = edgeAnalysis.incoming;
 		this.outgoing = edgeAnalysis.outgoing;
+		this.cyclic = cyclic;
 	}
 
 	@Override
@@ -157,30 +183,32 @@ public class DeadlockAnalysis extends Analysis {
 		}
 
 		// Now check the join nodes
-		for (WGNode join : graph.getJoinList()) {
-			// Get its outgoing edge
-			Edge outEdge = edges.get(outgoing[join.getId()].nextSetBit(0));
+		if (cyclic) {
+			for (WGNode join : graph.getJoinList()) {
+				// Get its outgoing edge
+				Edge outEdge = edges.get(outgoing[join.getId()].nextSetBit(0));
 
-			BitSet income = incoming[join.getId()];
-			for (int in = income.nextSetBit(0); in >= 0; in = income.nextSetBit(in + 1)) {
-				// An edge is visited
-				edgesVisited++;
+				BitSet income = incoming[join.getId()];
+				for (int in = income.nextSetBit(0); in >= 0; in = income.nextSetBit(in + 1)) {
+					// An edge is visited
+					edgesVisited++;
 
-				if (outEdge.deadlockInformation.get(in)) {
-					reporter.startIgnoreTimeMeasurement(graph, this.getClass().getName());
-					// There is a failure, so we have to add a failure
-					// annotation
-					// to the workflow
-					DeadlockCycleAnnotation annotation = new DeadlockCycleAnnotation(this);
+					if (outEdge.deadlockInformation.get(in)) {
+						reporter.startIgnoreTimeMeasurement(graph, this.getClass().getName());
+						// There is a failure, so we have to add a failure
+						// annotation
+						// to the workflow
+						DeadlockCycleAnnotation annotation = new DeadlockCycleAnnotation(this);
 
-					// Perform a failure diagnostic
-					failureDiagnostic(annotation, join, outEdge, outEdge, outEdge.deadlockInformation);
+						// Perform a failure diagnostic
+						failureDiagnostic(annotation, join, outEdge, outEdge, outEdge.deadlockInformation);
 
-					outEdge.deadlockInformation.andNot(income);
+						outEdge.deadlockInformation.andNot(income);
 
-					errors.add(annotation);
-					reporter.add(graph, AnalysisInformation.NUMBER_DEADLOCKS_LOOP, 1);
-					reporter.endIgnoreTimeMeasurement(graph, this.getClass().getName());
+						errors.add(annotation);
+						reporter.add(graph, AnalysisInformation.NUMBER_DEADLOCKS_LOOP, 1);
+						reporter.endIgnoreTimeMeasurement(graph, this.getClass().getName());
+					}
 				}
 			}
 		}
@@ -198,7 +226,7 @@ public class DeadlockAnalysis extends Analysis {
 	 *            The current edge id.
 	 * @param last
 	 *            The last edge id (the outgoing edge of join).
-	 * @param notAllowed
+	 * @param allowed
 	 *            Removed edges.
 	 * @param visited
 	 *            The already visited edges.

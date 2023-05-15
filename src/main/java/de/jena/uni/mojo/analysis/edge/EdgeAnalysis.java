@@ -78,15 +78,16 @@ public class EdgeAnalysis extends Analysis {
 
 	@Override
 	protected List<Annotation> analyze() {
-		// Determine the edges
-		determineEdges();
+		if (!graph.isClosed()) {
+			// Determine the edges
+			determineEdges();
 
-		// Report the number of edges
-		reporter.put(graph, AnalysisInformation.NUMBER_EDGES, edges.size());
-		
-		// Close the workflow graph
-		graph.close(edges, incoming, outgoing);
+			// Report the number of edges
+			reporter.put(graph, AnalysisInformation.NUMBER_EDGES, edges.size());
 
+			// Close the workflow graph
+			graph.close(edges, incoming, outgoing);
+		}
 		return Collections.emptyList();
 	}
 

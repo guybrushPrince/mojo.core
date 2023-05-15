@@ -43,6 +43,11 @@ public class StrongComponentsAnalysis extends Analysis {
 	public final static String STRONG_COMPONENT_NUMBER_VISITED_EDGES = "STRONG_COMPONENT_NUMBER_VISITED_EDGES";
 
 	/**
+	 * A constant for number of loops.
+	 */
+	public final static String STRONG_COMPONENT_LOOPS = "loops";
+
+	/**
 	 * The list of edges.
 	 */
 	private final List<Edge> edges;
@@ -105,6 +110,7 @@ public class StrongComponentsAnalysis extends Analysis {
 		// Put some information into the reporter about the number of
 		// visited edges.
 		reporter.put(graph, STRONG_COMPONENT_NUMBER_VISITED_EDGES, edgesVisited);
+		reporter.put(graph, STRONG_COMPONENT_LOOPS, components.size());
 		return Collections.emptyList();
 	}
 
@@ -162,5 +168,11 @@ public class StrongComponentsAnalysis extends Analysis {
 	public ArrayList<BitSet> getComponents() {
 		return this.components;
 	}
+
+	/**
+	 * Is the workflow graph cyclic?
+	 * @return Is the workflow graph cyclic?
+	 */
+	public boolean isCyclic() { return this.components.size() > 0; }
 
 }

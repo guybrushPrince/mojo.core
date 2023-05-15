@@ -194,6 +194,10 @@ public class Mojo {
 				Boolean.class, false);
 		Command fileCommand = new Command("PROCESS_FILE", "file", "f", "Determine a process file that should be used",
 				false, String.class, "");
+		Command fromCommand = new Command("FROM_FILE", "from", "[", "Defines from which entry of the process sets, the analysis should start",
+				false, Integer.class, 0);
+		Command amouCommand = new Command("AMOUNT", "amount", "a", "Defines the maximum number of files to be investigated",
+				false, Integer.class, Integer.MAX_VALUE);
 
 		// Create a new stream where we can write in the information
 		// about the major plans.
@@ -221,6 +225,8 @@ public class Mojo {
 		commands.put(hideCommand.getName(), hideCommand);
 		commands.put(helpCommand.getName(), helpCommand);
 		commands.put(fileCommand.getName(), fileCommand);
+		commands.put(fromCommand.getName(), fromCommand);
+		commands.put(amouCommand.getName(), amouCommand);
 		commands.put(anplCommand.getName(), anplCommand);
 		commands.put(csvfCommand.getName(), csvfCommand);
 		commands.put(simpCommand.getName(), simpCommand);
@@ -370,6 +376,7 @@ public class Mojo {
 		AnalysisInformation analysisInformation = new AnalysisInformation();
 
 		// For each process file that was found
+		int fileCounter = 0;
 		for (File file : fileHandler.getFiles()) {
 
 			List<Annotation> list = new ArrayList<Annotation>();
@@ -391,6 +398,9 @@ public class Mojo {
 					analyzeWorkflowGraphs(file, reader.getResult(), plugin.getIdInterpreter(), analysisInformation, list);
 				} catch (IOException e) { }
 			}
+
+			fileCounter++;
+			if (fileCounter > 0 && fileCounter % 1000 == 0) System.gc();
 		}
 
 		return analysisInformation;
@@ -420,8 +430,10 @@ public class Mojo {
 			System.out.printf("%n%s", file);
 			
 			// For each workflow graph within the process
+			int graphCounter = 1;
 			for (WorkflowGraph g : graphs) {
 
+				analysisInformation.put(g, "subgraph", graphCounter++);
 				Mojo.analyzeWorkflowGraph(file.getName(), g, analysisInformation, list);
 
 				// Show the information.
@@ -436,7 +448,7 @@ public class Mojo {
 						error.printInformation(interpreter);
 					}
 					if (list.isEmpty()) {
-						System.out.printf("\t%s%n", "Everyting well");
+						System.out.printf("\t%s%n", "Everything well");
 					}
 				}
 			}
@@ -519,7 +531,7 @@ public class Mojo {
 	 *            The file.
 	 * @param info
 	 *            The analysis information.
-	 * @param charset
+	 * @param encoding
 	 *            The charset of the file.
 	 * @return A list of errors within the process.
 	 * @throws IOException
@@ -541,7 +553,7 @@ public class Mojo {
 	 *            The process stream string.
 	 * @param info
 	 *            The analysis information container.
-	 * @param charset
+	 * @param encoding
 	 *            The charset of the file.
 	 * @return A list of errors.
 	 */
@@ -563,8 +575,11 @@ public class Mojo {
 		// The graph cannot be transformed
 		if (graphs != null) {
 			// For each workflow graph within the process
-			for (WorkflowGraph g : graphs)
+			int graphCounter = 1;
+			for (WorkflowGraph g : graphs) {
+				info.put(g, "subgraph", graphCounter++);
 				Mojo.analyzeWorkflowGraph(processName, g, info, list);
+			}
 		}
 
 		return list;

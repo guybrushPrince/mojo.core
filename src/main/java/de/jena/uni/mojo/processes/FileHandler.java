@@ -21,6 +21,7 @@ package de.jena.uni.mojo.processes;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import de.jena.uni.mojo.Mojo;
 
@@ -91,6 +92,11 @@ public class FileHandler {
 				}
 			}
 		}
+		files = files.stream().sorted().collect(Collectors.toList());
+		int from = Mojo.getCommand("FROM_FILE").asIntegerValue();
+		int amount = Mojo.getCommand("AMOUNT").asIntegerValue();
+		from = Math.min(from, files.size());
+		files = files.subList(from, Math.min(amount == Integer.MAX_VALUE ? amount : from + amount - 1, files.size()));
 		return files;
 	}
 
