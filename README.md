@@ -62,9 +62,10 @@ Mojo allows you to add plug-ins and to write your own plug-ins.
 
 There are several Mojo plug-ins which are ready to use:
 
-- https://github.com/guybrushPrince/mojo.reader.pnml
-- https://github.com/guybrushPrince/mojo.reader.bpmn
-- https://github.com/guybrushPrince/mojo.plan.sese
+- https://github.com/guybrushPrince/mojo.reader.pnml (PNML input)
+- https://github.com/guybrushPrince/mojo.reader.bpmn (BPMN input)
+- https://github.com/guybrushPrince/mojo.plan.loop (Soundness checking with loop decomposition)
+- https://github.com/guybrushPrince/mojo.plan.sese (Perform a SESE decomposition to check soundness)
 
 To use them, you simply had to add them to the Mojo classpath.
 
